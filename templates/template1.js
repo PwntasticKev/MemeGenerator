@@ -302,6 +302,51 @@ export async function template1({ overlayPath, image1, image2, fact, reply, outp
 		</g>`;
 	}
 
+	// Fetch and process avatar image (URL or local file)
+	let avatarBuffer = null;
+	try {
+		if (avatarPath && avatarPath.startsWith('http')) {
+			const avatarResp = await axios.get(avatarPath, { responseType: 'arraybuffer' });
+			avatarBuffer = Buffer.from(avatarResp.data);
+		} else {
+			avatarBuffer = await fs.promises.readFile(avatarPath);
+		}
+		// Resize and mask as a circle
+		avatarBuffer = await sharp(avatarBuffer)
+			.resize(profilePicSize, profilePicSize)
+			.composite([
+				{
+					input: Buffer.from(
+						`<svg width='${profilePicSize}' height='${profilePicSize}'><circle cx='${profilePicSize/2}' cy='${profilePicSize/2}' r='${profilePicSize/2}' fill='white'/></svg>`
+					),
+					blend: 'dest-in'
+				}
+			])
+			.png()
+			.toBuffer();
+	} catch (e) {
+		console.log('Avatar image failed to load:', e.message);
+		// fallback: blank circle
+		avatarBuffer = await sharp({
+			create: {
+				width: profilePicSize,
+				height: profilePicSize,
+				channels: 4,
+				background: { r: 240, g: 240, b: 240, alpha: 1 }
+			}
+		})
+		.composite([
+			{
+				input: Buffer.from(
+					`<svg width='${profilePicSize}' height='${profilePicSize}'><circle cx='${profilePicSize/2}' cy='${profilePicSize/2}' r='${profilePicSize/2}' fill='#eee'/></svg>`
+				),
+				blend: 'dest-in'
+			}
+		])
+		.png()
+		.toBuffer();
+	}
+
 	// Compose the card SVG, now including avatar, handle, and name
 	const cardSvg = `
 	<svg width="${OUTPUT_WIDTH}" height="${OUTPUT_HEIGHT}">
@@ -318,7 +363,7 @@ export async function template1({ overlayPath, image1, image2, fact, reply, outp
 		<!-- Avatar and handle section -->
 		<g>
 			<circle cx="${imageX + profilePicSize/2}" cy="${replySectionY + profilePicSize/2}" r="${profilePicSize/2}" fill="white" stroke="#ddd" stroke-width="3"/>
-			<image x="${imageX}" y="${replySectionY}" width="${profilePicSize}" height="${profilePicSize}" href="${avatarPath}"/>
+			<!-- Avatar image will be composited with sharp, not SVG -->
 			<text x="${nameX}" y="${nameY}" font-size="32" font-family="Arial" fill="#222" font-weight="bold">${escapeXml(name)}</text>
 			<text x="${nameX}" y="${handleY}" font-size="28" font-family="Arial" fill="#888">${escapeXml(handle)}</text>
 		</g>
@@ -338,7 +383,9 @@ export async function template1({ overlayPath, image1, image2, fact, reply, outp
 	await composition
 		.composite([
 			{ input: Buffer.from(cardSvg), top: 0, left: 0 },
-			...imageCompositions
+			...imageCompositions,
+			// Add the avatar as a circular image
+			{ input: avatarBuffer, top: Math.round(replySectionY), left: Math.round(imageX) }
 		])
 		.png()
 		.toFile(outputPath);

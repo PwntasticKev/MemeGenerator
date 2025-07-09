@@ -53,7 +53,7 @@ function getTemplateByIndex(idx) {
 	if (idx >= 1 && idx <= templates.length) return templates[idx - 1];
 	return null;
 }
-function getRandomTemplate() {
+export function getRandomTemplate() {
 	const idx = Math.floor(Math.random() * templates.length);
 	return templates[idx];
 }
@@ -1131,27 +1131,9 @@ async function main(presetTopic = null, presetScheduledTime = null, presetAccoun
 		
 		console.log(`[YouTube] Using account ${accountNumber}`);
 
-		// Template selection (only in interactive mode)
-		let selectedTemplate;
-		if (!isBatchMode && !skipReview) {
-			const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-			const templatePrompt = `\nSelect template (1-1, default: 1): `;
-			const templateAnswer = await new Promise(resolve => {
-				rl.question(templatePrompt, answer => {
-					rl.close();
-					const parsed = parseInt(answer.trim());
-					if (!isNaN(parsed) && parsed === 1) {
-						resolve(parsed);
-					} else {
-						resolve(1); // Default to template 1
-					}
-				});
-			});
-			selectedTemplate = getTemplateByIndex(templateAnswer);
-			console.log(`[Template] Using template #${templateAnswer}`);
-		} else {
-			selectedTemplate = getRandomTemplate();
-		}
+		// Template selection - always randomized
+		let selectedTemplate = getRandomTemplate();
+		console.log(`[Template] Using randomized template`);
 
 		// Get user input for topic (or use preset topic)
 		let topic;
@@ -1469,8 +1451,11 @@ const isBatchMode = args.includes('--batch') || args.includes('--batch-mode');
 // Export main function for testing
 export { main };
 
-// Run the main function with topic if provided
-main(topicArg, null, null, isBatchMode || skipReview);
+// Only run main function if this script is executed directly (not imported)
+if (import.meta.url === `file://${process.argv[1]}`) {
+	// Run the main function with topic if provided
+	main(topicArg, null, null, isBatchMode || skipReview);
+}
 
 // Loosen image quality check
 async function isImageHighQuality(url) {
@@ -1546,24 +1531,35 @@ You always return one single JSON object — no explanations, no intros, no mark
 "tags": ["keyword1", "keyword2", "keyword3"]
 }
 
+CONTROVERSIAL IMAGE SEARCH STRATEGY:
+
+Your primary goal is to find HIGHLY CONTROVERSIAL, DEBATE-SPARKING images that will make people stop scrolling and engage. Think of images that:
+
+1. **Controversial Moments**: Look for the most debated, argued-about scenes, characters, or moments related to the topic
+2. **Fan Wars**: Find images that trigger fan debates (e.g., "best version", "worst adaptation", "overrated/underrated")
+3. **Plot Twists**: Focus on shocking reveals, unexpected endings, or controversial character decisions
+4. **Behind-the-Scenes Drama**: Real-life controversies, casting decisions, director changes, studio interference
+5. **Cultural Impact**: Moments that divided audiences, sparked outrage, or became internet memes
+6. **Character Controversies**: The most hated/loved characters, problematic scenes, or character assassinations
+
 Image Search Terms Rules:
 
-For image_search_terms, create 4 specific search terms that will find relevant, high-quality images:
+For image_search_terms, create 4 specific search terms that will find the MOST CONTROVERSIAL images:
 
-1. ALWAYS include "movie", "show", "film", "series", "character", "actor", "actress", "scene", "poster", "still", "screenshot", or "official" in your search terms
-2. Examples: "Spider-Man movie poster", "Breaking Bad Walter White scene", "Game of Thrones Jon Snow character", "The Office Michael Scott actor"
-3. Be specific about the content - don't use generic terms like "funny" or "meme"
-4. Focus on official content, character images, movie posters, or key scenes
-5. Include the exact title/name when possible
+1. **ALWAYS include controversial keywords**: "controversial", "debated", "hated", "problematic", "worst", "best", "overrated", "underrated", "shocking", "outrage", "backlash", "fan war", "meme", "viral moment"
+2. **Examples**: "Spider-Man 3 most hated scene", "Game of Thrones controversial ending", "The Office Michael Scott problematic", "Star Wars prequels worst moment", "Breaking Bad Walter White villain debate"
+3. **Be specific about controversy**: Don't use generic terms - target the exact moment that caused outrage
+4. **Focus on debate triggers**: Look for images that will make people argue in the comments
+5. **Include exact controversy**: Use the specific controversy name when possible
 
 Avatar Search Terms Rules:
 
-For avatar_search_terms, create 2 search terms specifically for finding avatar/profile picture style images:
+For avatar_search_terms, create 2 search terms specifically for finding controversial avatar/profile picture style images:
 
-1. Include terms like "avatar", "profile picture", "headshot", "portrait", "character face", "actor headshot"
-2. Examples: "Spider-Man avatar", "Tony Stark profile picture", "Walter White portrait", "Darth Vader character face"
-3. Focus on close-up, portrait-style images that work well as overlays
-4. Prefer character faces, actor headshots, or iconic character portraits
+1. Include controversial terms like "controversial character", "hated character", "problematic", "debated", "meme face", "viral moment"
+2. Examples: "Jar Jar Binks controversial character", "Daenerys Targaryen problematic", "Michael Scott meme face", "Anakin Skywalker hated character"
+3. Focus on characters that sparked outrage or became internet memes
+4. Prefer characters that divided fan opinions or became controversial
 
 Image URL rules:
 
@@ -1618,7 +1614,17 @@ Never return markdown, explanations, partials, or extra commentary. JSON only.
 				},
 				{
 					role: "user",
-					content: `Generate a plot twist meme about: ${topic}`
+					content: `Generate a plot twist meme about: ${topic}
+
+IMPORTANT: Focus on finding the MOST CONTROVERSIAL, DEBATE-SPARKING aspects of this topic. Look for:
+- The most hated/loved moments
+- Fan war triggers
+- Problematic scenes or characters
+- Shocking plot twists that divided audiences
+- Behind-the-scenes drama
+- Viral moments that sparked outrage
+
+Make the image search terms target these controversial elements specifically.`
 				}
 			],
 			temperature: 0.8,
