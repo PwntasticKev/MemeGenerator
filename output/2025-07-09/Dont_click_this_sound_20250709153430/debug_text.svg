@@ -1,0 +1,36 @@
+
+	<svg width="1080" height="1920">
+		<rect x="0" y="0" width="100%" height="100%" fill="none"/>
+		<g>
+			
+	<svg width="1080" height="1920">
+		<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+			<feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000" flood-opacity="0.25"/>
+		</filter>
+		<rect x="40" y="134.4" width="1000" height="992"
+			fill="white" rx="56" ry="56" filter="url(#shadow)"/>
+	</svg>
+		</g>
+		<g>
+			<text x="100" y="222.4" font-size="48" font-family="Arial" fill="#222" font-weight="bold">
+				<tspan x="100" y="222.4">In Stranger Things, what if Eleven&apos;s</tspan><tspan x="100" y="276.4">powers are just elaborate D&amp;D fantasies</tspan><tspan x="100" y="330.4">of a sleep-deprived Dungeon Master</tspan><tspan x="100" y="384.4">trapped in the Upside Down?</tspan>
+			</text>
+		</g>
+		
+		<g>
+			<image x="68" y="454.4" width="469" height="400" href="leftImage.png"/>
+			<image x="543" y="454.4" width="469" height="400" href="rightImage.png"/>
+		</g>
+		<!-- Avatar and handle section -->
+		<g>
+			<circle cx="108" cy="926.4" r="40" fill="white" stroke="#ddd" stroke-width="3"/>
+			<image x="68" y="886.4" width="80" height="80" href="output/2025-07-09/Dont_click_this_sound_20250709153430/avatar_1752075472997.png"/>
+			<text x="180" y="926.4" font-size="32" font-family="Arial" fill="#222" font-weight="bold">Quinn White</text>
+			<text x="180" y="962.4" font-size="28" font-family="Arial" fill="#888">@quinn.white11</text>
+		</g>
+		<g>
+			<text x="100" y="1010.4" font-size="40" font-family="Arial" fill="#444">
+				<tspan x="100" y="1010.4">Guess we&apos;re all just pawns in Eleven&apos;s elaborate</tspan><tspan x="100" y="1056.4">game then!</tspan>
+			</text>
+		</g>
+	</svg>
