@@ -1,0 +1,71 @@
+<svg width="1080" height="1920" viewBox="0 0 1080 1920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1080" height="1920" fill="#878787"/>
+  
+  <!-- Main content area -->
+  <g filter="url(#filter0_d)">
+    <rect x="97" y="467" width="433" height="703" rx="15" fill="#CACACA"/>
+  </g>
+  <g filter="url(#filter1_d)">
+    <rect x="543" y="467" width="433" height="703" rx="15" fill="#CACACA"/>
+  </g>
+  
+  <!-- Text content area -->
+  <g filter="url(#filter2_d)">
+    <rect x="97" y="1208" width="879" height="369" rx="15" fill="white"/>
+  </g>
+  
+  <!-- Avatar circle -->
+  <circle cx="198" cy="1317" r="54" fill="#D1CBCB"/>
+  
+  <!-- Text placeholders with standardized naming -->
+  <text x="159" y="858" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="black" text-anchor="start" dominant-baseline="hanging">
+    Did you know that Spider-Man was originally going to be called 'The Human Spider'?
+  </text>
+  
+  <text x="159" y="1158" font-family="Arial, sans-serif" font-size="20" font-weight="normal" fill="black" text-anchor="start" dominant-baseline="hanging">
+    Imagine if he had to say 'I am the Human Spider' every time he swung into action. That would be... interesting.
+  </text>
+  
+  <text x="159" y="1358" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="black" text-anchor="start" dominant-baseline="hanging">
+    @spiderman_facts
+  </text>
+  
+  <text x="159" y="1380" font-family="Arial, sans-serif" font-size="16" font-weight="normal" fill="black" text-anchor="start" dominant-baseline="hanging">
+    Spider-Man Facts
+  </text>
+  
+  <!-- Filters for shadows -->
+  <defs>
+    <filter id="filter0_d" x="93" y="467" width="441" height="711" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="4"/>
+      <feGaussianBlur stdDeviation="2"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+    <filter id="filter1_d" x="539" y="467" width="441" height="711" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="4"/>
+      <feGaussianBlur stdDeviation="2"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+    <filter id="filter2_d" x="93" y="1208" width="887" height="377" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="4"/>
+      <feGaussianBlur stdDeviation="2"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+</svg>

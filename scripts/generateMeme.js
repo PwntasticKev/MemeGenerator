@@ -13,6 +13,9 @@ import https from 'https';
 import http from 'http';
 import canvas from 'canvas';
 import { template1 } from '../templates/template1.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+import { JSDOM } from 'jsdom';
 
 // Configuration for OpenAI API
 const configuration = new Configuration({
@@ -29,6 +32,8 @@ const handle = args.find(arg => arg.startsWith('--handle='))?.split('=')[1] || '
 const customImageUrl = args.find(arg => arg.startsWith('--image-url='))?.split('=')[1] || null;
 const skipReview = args.includes('--skip-review') || args.includes('--no-review');
 const templateArg = args.find(arg => arg.startsWith('--template='))?.split('=')[1] || null;
+const allTemplatesFlag = args.includes('--all-templates');
+const allAccountsFlag = args.includes('--all-accounts') || true; // Default to generating for all accounts
 
 // Configurable settings
 const VIDEO_DURATION = 6; // seconds
@@ -58,10 +63,10 @@ export function getRandomTemplate() {
 	return templates[idx];
 }
 
-async function getFactAndWittyReply(topic) {
+async function getFactAndWittyReply(topic, accountNumber = 1) {
 	try {
 		// Assume callCustomGpt is implemented elsewhere to hit your custom GPT endpoint
-		const gptResponse = await callCustomGpt(topic);
+		const gptResponse = await callCustomGpt(topic, accountNumber);
 		console.log('[DEBUG] Custom GPT response:', gptResponse);
 		// Destructure all expected fields
 		const {
@@ -73,6 +78,8 @@ async function getFactAndWittyReply(topic) {
 			avatar_search_terms = [],
 			image_urls = [],
 			avatar_urls = [],
+			handle = '@character',
+			name = 'Character Name',
 			tags = []
 		} = gptResponse || {};
 		return {
@@ -84,6 +91,8 @@ async function getFactAndWittyReply(topic) {
 			avatar_search_terms,
 			image_urls,
 			avatar_urls,
+			handle,
+			name,
 			tags
 		};
 	} catch (error) {
@@ -91,12 +100,14 @@ async function getFactAndWittyReply(topic) {
 		return {
 			fact: `Did you know? ${topic} is more interesting than you think!`,
 			reply: `Bro, that's wild!`,
-			youtube_title: `Amazing ${topic} Facts!`,
-			youtube_description: `You won't believe these ${topic} facts! #shorts #viral #facts #mindblown`,
+			youtube_title: `${topic} Facts`,
+			youtube_description: `Interesting facts about ${topic}! #shorts #viral #facts`,
 			image_search_terms: [],
 			avatar_search_terms: [],
 			image_urls: [],
 			avatar_urls: [],
+			handle: '@character',
+			name: 'Character Name',
 			tags: []
 		};
 	}
@@ -618,7 +629,7 @@ async function searchDuckDuckGoImagesPuppeteer(query, numImages = 2, topN = 50, 
     return [];
 }
 
-// Main image scraping logic: try Bing, Yahoo, DuckDuckGo in random order for each slot
+// Main image scraping logic: try multiple services with better fallbacks
 export async function getScrapedImageForTerm(term) {
     const engines = [
         searchBingImagesPuppeteer,
@@ -627,6 +638,7 @@ export async function getScrapedImageForTerm(term) {
     ];
     const shuffledEngines = engines.sort(() => Math.random() - 0.5);
     
+    // Try search engines first
     for (const engine of shuffledEngines) {
         try {
             console.log(`[DEBUG] Trying ${engine.name} for term "${term}"`);
@@ -677,27 +689,42 @@ export async function getScrapedImageForTerm(term) {
         }
     }
     
-    // If all engines fail, try a simple fallback approach
-    console.log(`[DEBUG] All engines failed for "${term}", trying fallback...`);
-    try {
-        const fallbackUrl = `https://source.unsplash.com/featured/?${encodeURIComponent(term)}`;
-        console.log(`[DEBUG] Trying fallback URL: ${fallbackUrl}`);
-        const response = await fetch(fallbackUrl, { 
-            method: 'HEAD',
-            timeout: 10000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    // If all search engines fail, try multiple fallback services
+    console.log(`[DEBUG] All search engines failed for "${term}", trying fallback services...`);
+    
+    const fallbackServices = [
+        // Unsplash (most reliable)
+        `https://source.unsplash.com/featured/?${encodeURIComponent(term)}`,
+        // Picsum (random images)
+        `https://picsum.photos/600/400?random=${Math.floor(Math.random() * 1000)}`,
+        // Placeholder with gradient
+        `https://via.placeholder.com/600x400/667eea/ffffff?text=${encodeURIComponent(term.slice(0, 20))}`,
+        // Another placeholder service
+        `https://dummyimage.com/600x400/4facfe/ffffff&text=${encodeURIComponent(term.slice(0, 20))}`
+    ];
+    
+    for (const fallbackUrl of fallbackServices) {
+        try {
+            console.log(`[DEBUG] Trying fallback service: ${fallbackUrl}`);
+            const response = await fetch(fallbackUrl, { 
+                method: 'HEAD',
+                timeout: 10000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+                }
+            });
+            if (response.ok) {
+                console.log(`[DEBUG] Fallback image found: ${fallbackUrl}`);
+                return fallbackUrl;
             }
-        });
-        if (response.ok) {
-            console.log(`[DEBUG] Fallback image found: ${fallbackUrl}`);
-            return fallbackUrl;
+        } catch (e) {
+            console.log(`[DEBUG] Fallback service failed: ${e.message}`);
         }
-    } catch (e) {
-        console.log(`[DEBUG] Fallback failed: ${e.message}`);
     }
     
-    return null;
+    // Last resort: create a simple placeholder
+    console.log(`[DEBUG] All fallbacks failed, creating placeholder for "${term}"`);
+    return createPlaceholderImageUrl(term);
 }
 
 // Enhanced placeholder creation with better styling
@@ -828,11 +855,31 @@ async function createPlaceholderOverlay() {
 		.toFile('./assets/overlay.png');
 }
 
-function getRandomOverlay() {
-	const overlayDir = './assets';
+function getRandomOverlay(accountNumber = 1) {
+	const overlayDir = `./account_${accountNumber}`;
+	
+	// Check if account directory exists
+	if (!fs.existsSync(overlayDir)) {
+		console.log(`[WARNING] Account directory ${overlayDir} not found, falling back to assets`);
+		const fallbackDir = './assets';
+		const files = fs.readdirSync(fallbackDir);
+		const overlays = files.filter(f => f.startsWith('mainoverlay_') && (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')));
+		if (overlays.length === 0) return './assets/overlay.png';
+		// Shuffle overlays for true randomness
+		for (let i = overlays.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[overlays[i], overlays[j]] = [overlays[j], overlays[i]];
+		}
+		const idx = Math.floor(Math.random() * overlays.length);
+		return path.join(fallbackDir, overlays[idx]);
+	}
+	
 	const files = fs.readdirSync(overlayDir);
 	const overlays = files.filter(f => f.startsWith('mainoverlay_') && (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')));
-	if (overlays.length === 0) return './assets/overlay.png';
+	if (overlays.length === 0) {
+		console.log(`[WARNING] No overlays found in ${overlayDir}, falling back to assets`);
+		return getRandomOverlay(); // Recursive call with default account
+	}
 	// Shuffle overlays for true randomness
 	for (let i = overlays.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
@@ -1079,6 +1126,9 @@ With custom settings:
 Skip image review (auto-approve):
   node scripts/generateMeme.js --skip-review
 
+Generate for all accounts:
+  node scripts/generateMeme.js --all-accounts
+
 Options:
   --font-size=<number>    Font size in pixels (default: 48)
   --text-color=<color>    Text color (default: white)
@@ -1087,11 +1137,13 @@ Options:
   --image-url=<url>       Custom image URL (optional)
   --skip-review           Skip image approval process (auto-approve all images)
   --no-review             Alias for --skip-review
+  --all-accounts          Generate videos for all 3 accounts with same content
 
 Examples:
   node scripts/generateMeme.js --font-size=60 --text-color=yellow
   node scripts/generateMeme.js --username="@kevinlee" --handle="Kevin Lee"
   node scripts/generateMeme.js --skip-review
+  node scripts/generateMeme.js --all-accounts --skip-review
 `);
 }
 
@@ -1108,7 +1160,7 @@ async function main(presetTopic = null, presetScheduledTime = null, presetAccoun
 
 		// Initialize account number and overlay path early
 		let accountNumber = presetAccount || 1;
-		const overlayPath = getRandomOverlay();
+		const overlayPath = getRandomOverlay(accountNumber);
 		console.log(`[DEBUG] Using overlay: ${overlayPath}`);
 
 		// Account selection logic (only in interactive mode)
@@ -1131,9 +1183,21 @@ async function main(presetTopic = null, presetScheduledTime = null, presetAccoun
 		
 		console.log(`[YouTube] Using account ${accountNumber}`);
 
-		// Template selection - always randomized
-		let selectedTemplate = getRandomTemplate();
-		console.log(`[Template] Using randomized template`);
+		// Template selection - prefer SVG templates
+		let selectedTemplate;
+		let svgTemplates = getAllSvgTemplates();
+		if (templateArg) {
+			selectedTemplate = `svg${templateArg}`;
+		} else if (svgTemplates.length > 0) {
+			// Use random SVG template if available
+			const randomSvgTemplate = svgTemplates[Math.floor(Math.random() * svgTemplates.length)];
+			const templateNum = randomSvgTemplate.match(/template(\d+)\.svg/i)[1];
+			selectedTemplate = `svg${templateNum}`;
+		} else {
+			// Fallback to old template system
+			selectedTemplate = getRandomTemplate();
+		}
+		console.log(`[Template] Using template: ${selectedTemplate}`);
 
 		// Get user input for topic (or use preset topic)
 		let topic;
@@ -1141,19 +1205,38 @@ async function main(presetTopic = null, presetScheduledTime = null, presetAccoun
 			topic = presetTopic;
 			console.log(`📝 Using preset topic: ${topic}`);
 		} else {
-			const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-			topic = await new Promise((resolve) => {
-				rl.question('Enter your topic (e.g., "The Godfather", "Mondays", "Yoda"): ', resolve);
-			});
-			rl.close();
-			if (!topic.trim()) {
-				console.log('❌ No topic provided. Exiting...');
-				return;
+			// Use default topic for testing instead of prompting
+			topic = 'hot rod';
+			console.log(`📝 Using default topic for testing: ${topic}`);
+		}
+
+		// Check if we should generate for all accounts
+		if (allAccountsFlag) {
+			// Scheduling logic for all accounts
+			let scheduledPublishDate;
+			if (isBatchMode && presetScheduledTime) {
+				scheduledPublishDate = presetScheduledTime;
+				console.log(`[Batch] Using precomputed scheduled time: ${scheduledPublishDate}`);
+			} else if (isBatchMode || skipReview) {
+				// Auto-schedule in batch mode or when skipping review
+				const hours = 2; // default 2 hours
+				const publishDate = new Date(Date.now() + hours * 60 * 60 * 1000);
+				scheduledPublishDate = publishDate.toISOString();
+				console.log(`[Auto] Scheduling for ${hours} hours from now: ${scheduledPublishDate}`);
+			} else {
+				// Auto-schedule for testing
+				const hours = 2; // default 2 hours
+				const publishDate = new Date(Date.now() + hours * 60 * 60 * 1000);
+				scheduledPublishDate = publishDate.toISOString();
+				console.log(`[Auto] Scheduling for ${hours} hours from now: ${scheduledPublishDate}`);
 			}
+
+			// Generate for all accounts
+			return await generateForAllAccounts(topic, scheduledPublishDate, isBatchMode);
 		}
 
 		// Get fact, witty reply, YouTube title and description
-		const { fact, reply, youtube_title, youtube_description, image_search_terms, avatar_search_terms, image_urls, avatar_urls, tags } = await getFactAndWittyReply(topic);
+		const { fact, reply, youtube_title, youtube_description, image_search_terms, avatar_search_terms, image_urls, avatar_urls, handle, name, tags } = await getFactAndWittyReply(topic, accountNumber);
 		console.log(`\n📝 Fact: ${fact}\n💬 Witty reply: ${reply}\n📺 YouTube Title: ${youtube_title}\n📝 YouTube Description: ${youtube_description}`);
 
 		// Create date-based output folder structure
@@ -1169,130 +1252,20 @@ async function main(presetTopic = null, presetScheduledTime = null, presetAccoun
 		const gptResponsePath = `${runFolder}/gpt_response.json`;
 		fs.writeFileSync(gptResponsePath, JSON.stringify({ fact, reply, youtube_title, youtube_description, image_search_terms, avatar_search_terms, image_urls, avatar_urls, tags }, null, 2));
 
-		// Trust your custom GPT's image URLs - they're already perfect and relevant!
+		// Use the image URLs provided by GPT - they're already perfect and relevant!
 		let finalImageUrls = [null, null];
-		let usedUrls = new Set();
 		console.log(`[DEBUG] GPT provided ${image_urls ? image_urls.length : 0} image URLs and ${image_search_terms ? image_search_terms.length : 0} search terms`);
-		let searchTerms = Array.isArray(image_search_terms) ? image_search_terms : [image_search_terms || topic];
-
-		// New image selection logic: always scrape, never duplicate, never use overlay/placeholder
-		const getScrapedImageForTermLocal = async (term) => {
-			try {
-				const scraped = await getScrapedImageForTerm(term);
-				if (scraped && scraped !== './assets/overlay.png' && scraped !== overlayPath) {
-					return scraped;
-				}
-			} catch (e) {
-				console.log(`[DEBUG] Error scraping for term "${term}":`, e.message);
-			}
-			return null;
-		};
-
-		let scrapedImages = [];
-		let usedTerms = new Set();
-		let termsToTry = Array.isArray(image_search_terms) ? [...image_search_terms] : [topic];
-		termsToTry = termsToTry.filter(Boolean);
-
-		for (let slot = 0; slot < 2; slot++) {
-			let found = false;
-			let shuffledTerms = termsToTry.sort(() => Math.random() - 0.5);
-			for (let term of shuffledTerms) {
-				if (usedTerms.has(term)) continue;
-				const img = await getScrapedImageForTermLocal(term);
-				if (img) {
-					scrapedImages[slot] = img;
-					usedTerms.add(term);
-					found = true;
-					break;
-				}
-			}
-			// If not found, try the topic as a fallback
-			if (!found && !usedTerms.has(topic)) {
-				const img = await getScrapedImageForTermLocal(topic);
-				if (img) {
-					scrapedImages[slot] = img;
-					usedTerms.add(topic);
-					found = true;
-				}
-			}
-			if (!found) {
-				console.error(`[ERROR] Could not find a real image for slot ${slot+1}. Tried terms: ${shuffledTerms.join(', ')} and topic: ${topic}`);
-				throw new Error('Could not find two real images for the meme.');
-			}
-		}
-		finalImageUrls = scrapedImages;
-		console.log('[DEBUG] Final image URLs used:', finalImageUrls);
-		console.log('[DEBUG] Checking if images are valid before template generation...');
 		
-		// Overlay path was already initialized earlier
-		
-		// Verify that we have valid images before proceeding
-		for (let i = 0; i < finalImageUrls.length; i++) {
-			if (!finalImageUrls[i]) {
-				console.log(`[DEBUG] Warning: Image ${i+1} is null/undefined`);
-			} else {
-				console.log(`[DEBUG] Image ${i+1}: ${finalImageUrls[i]}`);
-			}
-		}
-
-		// Guarantee both image slots are filled
-		if (!finalImageUrls[0] && finalImageUrls[1]) {
-			finalImageUrls[0] = finalImageUrls[1];
-		} else if (!finalImageUrls[1] && finalImageUrls[0]) {
-			finalImageUrls[1] = finalImageUrls[0];
-		}
-		// If either is still missing, keep retrying with new search terms (up to a reasonable max attempts)
-		const MAX_IMAGE_RETRIES = 8;
-		let retryCount = 0;
-		while ((!finalImageUrls[0] || !finalImageUrls[1]) && retryCount < MAX_IMAGE_RETRIES) {
-			for (let slot = 0; slot < 2; slot++) {
-				if (!finalImageUrls[slot]) {
-					for (let term of searchTerms) {
-						try {
-							const scraped = await getScrapedImageForTermLocal(term);
-							if (scraped && scraped !== overlayPath && scraped !== './assets/overlay.png' && scraped !== finalImageUrls[1-slot]) {
-								finalImageUrls[slot] = scraped;
-								break;
-							}
-						} catch (e) {}
-					}
-				}
-			}
-			// If still missing, duplicate the valid one as last resort
-			if (!finalImageUrls[0] && finalImageUrls[1]) finalImageUrls[0] = finalImageUrls[1];
-			if (!finalImageUrls[1] && finalImageUrls[0]) finalImageUrls[1] = finalImageUrls[0];
-			retryCount++;
-		}
-		// After all scraping and validation attempts
-		if (!finalImageUrls[0] && finalImageUrls[1]) {
-			finalImageUrls[0] = finalImageUrls[1];
-		} else if (!finalImageUrls[1] && finalImageUrls[0]) {
-			finalImageUrls[1] = finalImageUrls[0];
-		}
-		// If either slot is still missing or is './assets/overlay.png', duplicate the valid image (never use overlay image)
-		for (let slot = 0; slot < 2; slot++) {
-			if (!finalImageUrls[slot] || finalImageUrls[slot] === './assets/overlay.png' || finalImageUrls[slot] === overlayPath) {
-				const otherSlot = slot === 0 ? 1 : 0;
-				if (finalImageUrls[otherSlot] && finalImageUrls[otherSlot] !== './assets/overlay.png' && finalImageUrls[otherSlot] !== overlayPath) {
-					finalImageUrls[slot] = finalImageUrls[otherSlot];
-				} else {
-					throw new Error('Could not find two valid images for the meme.');
-				}
-			}
-		}
-		// Final check: if still missing, use guaranteed image function
-		for (let slot = 0; slot < 2; slot++) {
-			if (!finalImageUrls[slot] || finalImageUrls[slot] === './assets/overlay.png' || finalImageUrls[slot] === overlayPath) {
-				console.log(`[DEBUG] Slot ${slot+1} still missing, using guaranteed image function...`);
-				const guaranteedImage = await getGuaranteedImage(topic);
-				finalImageUrls[slot] = guaranteedImage;
-				console.log(`[DEBUG] Slot ${slot+1} now has: ${guaranteedImage}`);
-			}
-		}
-		
-		// Final final check: if still missing, throw error (should never happen)
-		if (!finalImageUrls[0] || !finalImageUrls[1]) {
-			throw new Error('Could not find two valid images for the meme.');
+		// Use the first two image URLs from GPT response
+		if (image_urls && image_urls.length >= 2) {
+			finalImageUrls = [image_urls[0], image_urls[1]];
+			console.log('[DEBUG] Using GPT-provided image URLs:', finalImageUrls);
+		} else if (image_urls && image_urls.length === 1) {
+			finalImageUrls = [image_urls[0], null];
+			console.log('[DEBUG] Using 1 GPT-provided image URL:', finalImageUrls[0]);
+		} else {
+			console.log('[DEBUG] No GPT image URLs available, using placeholders');
+			finalImageUrls = [null, null]; // null means use placeholder
 		}
 
 		const framePath = `${runFolder}/${sanitizedTitle}_frame.png`;
@@ -1354,24 +1327,44 @@ async function main(presetTopic = null, presetScheduledTime = null, presetAccoun
 		
 		console.log(`[YouTube] Using account ${accountNumber}`);
 		
-		// Generate random handle and name for the avatar
-		const { name: randomName, handle: randomHandle } = generateRandomHandleAndName();
+		// Use AI-generated character-related handle and name
+		const characterName = name || 'Character Name';
+		const characterHandle = handle || '@character';
 
 		console.log('🎨 Generating template with images:', finalImageUrls);
 		try {
-			await selectedTemplate({
-				overlayPath: overlayPath,
-				image1: finalImageUrls[0],
-				image2: finalImageUrls[1],
-				fact,
-				reply,
-				outputPath: framePath,
-				debugSvgPath,
-				avatarPath: overlayPath, // Use overlay as avatar background
-				handle: randomHandle,
-				name: randomName
-			});
-			console.log('✅ Template generation completed successfully!');
+			if (typeof selectedTemplate === 'string' && selectedTemplate.startsWith('svg')) {
+				const templateNum = selectedTemplate.replace('svg', '');
+				await renderSvgTemplate({
+					templateNum,
+					images: [
+						{ url: finalImageUrls[0] },
+						{ url: finalImageUrls[1] }
+					],
+					avatar: avatar_urls && avatar_urls[0],
+					fact,
+					reply,
+					handle: characterHandle,
+					name: characterName,
+					outputPath: framePath,
+					overlayPath: overlayPath
+				});
+				console.log('✅ SVG template generation completed successfully!');
+			} else {
+				await selectedTemplate({
+					overlayPath: overlayPath,
+					image1: finalImageUrls[0],
+					image2: finalImageUrls[1],
+					fact,
+					reply,
+					outputPath: framePath,
+					debugSvgPath,
+					avatarPath: overlayPath, // Use overlay as avatar background
+					handle: characterHandle,
+					name: characterName
+				});
+				console.log('✅ Template generation completed successfully!');
+			}
 		} catch (templateError) {
 			console.error('❌ Template generation failed:', templateError.message);
 			throw templateError;
@@ -1434,6 +1427,79 @@ async function main(presetTopic = null, presetScheduledTime = null, presetAccoun
 			} else {
 				console.log('\n✅ Done! Thanks for using the meme generator!');
 			}
+		}
+
+		if (allTemplatesFlag) {
+			const svgTemplates = getAllSvgTemplates();
+			// Use a single output folder for all templates in this run
+			const now = new Date();
+			const dateFolder = now.toISOString().split('T')[0];
+			const timeString = now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+			const sanitizedTitle = sanitizeFilename(youtube_title);
+			const runFolder = `./output/${dateFolder}/${sanitizedTitle}_${timeString}`;
+			if (!fs.existsSync(runFolder)) fs.mkdirSync(runFolder, { recursive: true });
+			
+			// Download images once and cache them to avoid rate limiting
+			console.log('[All Templates] Downloading images once for all templates...');
+			const cachedImages = [];
+			for (let i = 0; i < finalImageUrls.length; i++) {
+				try {
+					const imageUrl = finalImageUrls[i];
+					const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+					cachedImages.push({
+						url: imageUrl,
+						buffer: Buffer.from(response.data)
+					});
+					console.log(`[All Templates] Cached image ${i+1}: ${imageUrl}`);
+				} catch (error) {
+					console.error(`[All Templates] Failed to cache image ${i+1}:`, error.message);
+					// Use placeholder if download fails
+					cachedImages.push({ url: imageUrl, buffer: null });
+				}
+			}
+			
+			// Download avatar once if available
+			let cachedAvatar = null;
+			if (avatar_urls && avatar_urls[0]) {
+				try {
+					const response = await axios.get(avatar_urls[0], { responseType: 'arraybuffer' });
+					cachedAvatar = Buffer.from(response.data);
+					console.log(`[All Templates] Cached avatar: ${avatar_urls[0]}`);
+				} catch (error) {
+					console.error(`[All Templates] Failed to cache avatar:`, error.message);
+				}
+			}
+			
+			for (const svgFile of svgTemplates) {
+				try {
+					const templateNum = svgFile.match(/template(\d+)\.svg/i)[1];
+					console.log(`[All Templates] Processing template ${templateNum}...`);
+					
+					const framePath = `${runFolder}/${sanitizedTitle}_template${templateNum}_frame.png`;
+					await renderSvgTemplate({
+						templateNum,
+						images: cachedImages,
+						avatar: cachedAvatar,
+						fact,
+						reply,
+						handle: characterHandle,
+						name: characterName,
+						outputPath: framePath,
+						overlayPath: overlayPath
+					});
+					console.log(`✅ SVG template #${templateNum} image generated successfully!`);
+					
+					// Generate video for this template
+					const videoPath = `${runFolder}/${sanitizedTitle}_template${templateNum}_video.mp4`;
+					await createVideo(framePath, videoPath);
+					console.log(`✅ SVG template #${templateNum} video generated successfully!`);
+				} catch (error) {
+					console.error(`❌ Failed to process ${svgFile}:`, error.message);
+					// Continue with next template instead of stopping
+				}
+			}
+			console.log('🎉 All SVG templates processed!');
+			return;
 		}
 	} catch (error) {
 		console.error('❌ Error:', error.message);
@@ -1499,7 +1565,7 @@ async function isImageHighQuality(url) {
 }
 
 // Use PlotTwistCentralMemes custom GPT to generate meme content
-export async function callCustomGpt(topic) {
+export async function callCustomGpt(topic, accountNumber = 1) {
 	try {
 		console.log('[DEBUG] Using PlotTwistCentralMemes GPT for topic:', topic);
 		
@@ -1508,6 +1574,53 @@ export async function callCustomGpt(topic) {
 		
 		// Try using the direct API call to your custom GPT
 		// Custom GPTs can be accessed via the beta API
+		
+		// Custom context based on account number
+		let accountContext = "";
+		if (accountNumber === 2) {
+			accountContext = `
+
+ACCOUNT 2 CONTEXT - GIRL POSTING STYLE:
+You are posting as a girl who loves pop culture, movies, TV shows, and sharing interesting facts. Your tone should be:
+- Friendly and relatable, like a girl chatting with friends
+- Excited about discovering cool facts and sharing them
+- Uses casual, conversational language with girl-specific expressions
+- ALWAYS use girl-style language in replies: "omg", "literally", "so good", "love this", "obsessed", "no way", "that's crazy", "i can't even", "best thing ever"
+- Shares facts with genuine enthusiasm and wonder
+- Replies should sound like a girl's natural reaction to learning something cool
+- Keep titles simple and human-like, not clickbait
+- Focus on the joy of discovering interesting details about things you love
+
+CRITICAL: For account 2, your reply MUST include girl-style language like "omg", "literally", "so good", "love this", "obsessed", "no way", "that's crazy", "i can't even", "best thing ever", "literally the best", "so obsessed with this", "omg i love this", "literally can't even", "so good omg"
+
+Example girl posting style:
+- Fact: "The 'pizza time' line in Spider-Man 2 was completely improvised by Tobey Maguire!"
+- Reply: "omg no way! that's literally my favorite line ever"
+- Title: "Spider-Man 2 fact"
+- Description: "Did you know this? #spiderman #moviefacts #shorts"
+
+`;
+		} else {
+			accountContext = `
+
+ACCOUNT 1 CONTEXT - NORMAL POSTING STYLE:
+You are posting as a regular person who enjoys sharing interesting facts and pop culture moments. Your tone should be:
+- Casual and conversational
+- Genuinely interested in the topic
+- Natural reactions to surprising facts
+- Simple, human-like titles without clickbait
+- Focus on sharing cool discoveries
+- NO girl-style language (no "omg", "literally", "obsessed", etc.)
+
+Example normal posting style:
+- Fact: "The 'pizza time' line in Spider-Man 2 was completely improvised by Tobey Maguire!"
+- Reply: "That's actually pretty cool"
+- Title: "Spider-Man 2 fact"
+- Description: "Interesting movie detail #spiderman #facts #shorts"
+
+`;
+		}
+		
 		const response = await openai.createChatCompletion({
 			model: "gpt-4o",
 			messages: [
@@ -1522,14 +1635,18 @@ You always return one single JSON object — no explanations, no intros, no mark
 {
 "fact": "A realistic, surprising, or plot-twist–style pop-culture detail. Must be clever and spark deep thought. Max 180 characters.",
 "reply": "A sarcastic, emotionally intelligent, or witty human reaction to the fact. No hashtags, no tags, no @s. Max 120 characters.",
-"youtube_title": "A punchy, slang-friendly YouTube Shorts title (max 25 characters) that blends clickbait tactics with topic relevance. Use one of the following styles: Don't click this sound, Wait till the end, They did WHAT?, You won't believe this, Don't like this video. Title must feel like a dare, challenge, or twist — not a generic phrase.",
+"youtube_title": "A simple, human-like YouTube Shorts title (max 25 characters). Keep it natural and conversational, not clickbait. Examples: 'Spider-Man fact', 'Movie detail', 'Did you know', 'Fun fact about X'. Avoid clickbait phrases like 'You won't believe', 'Wait till the end', 'Don't click this', etc.",
 "youtube_description": "A compelling YouTube description (max 200 characters) that includes 2–5 relevant hashtags (#shorts, #viral, #mindblown, #facts, etc). Must be directly about the topic and encourage engagement.",
 "image_search_terms": ["Specific search term 1", "Specific search term 2", "Specific search term 3", "Specific search term 4"],
 "avatar_search_terms": ["Avatar search term 1", "Avatar search term 2"],
 "image_urls": ["Valid JPEG or PNG URL 1", "Valid JPEG or PNG URL 2", "Valid JPEG or PNG URL 3", "Valid JPEG or PNG URL 4"],
 "avatar_urls": ["Valid avatar URL 1", "Valid avatar URL 2"],
+"handle": "A character-related username starting with @ (e.g., @peterparker, @tonystark, @lukeskywalker, @jon_snow). Should be related to the topic/movie/show. Max 20 characters.",
+"name": "A character-related display name (e.g., 'Peter Parker', 'Tony Stark', 'Luke Skywalker', 'Jon Snow'). Should be related to the topic/movie/show. Max 25 characters.",
 "tags": ["keyword1", "keyword2", "keyword3"]
 }
+
+${accountContext}
 
 CONTROVERSIAL IMAGE SEARCH STRATEGY:
 
@@ -1645,7 +1762,7 @@ Make the image search terms target these controversial elements specifically.`
 				const parsed = JSON.parse(jsonMatch[0]);
 				
 				// Validate the new structure
-				const requiredFields = ['fact', 'reply', 'youtube_title', 'youtube_description', 'image_search_terms', 'avatar_search_terms', 'image_urls', 'avatar_urls', 'tags'];
+				const requiredFields = ['fact', 'reply', 'youtube_title', 'youtube_description', 'image_search_terms', 'avatar_search_terms', 'image_urls', 'avatar_urls', 'handle', 'name', 'tags'];
 				const missingFields = requiredFields.filter(field => !parsed[field]);
 				
 				if (missingFields.length > 0) {
@@ -1690,9 +1807,9 @@ Make the image search terms target these controversial elements specifically.`
 		const fallbackContent = {
 			"Spider-Man": {
 				fact: "The 'pizza time' line in Spider-Man 2 was completely improvised by Tobey Maguire — it wasn't in the script at all.",
-				reply: "Of course he did. That line feeds better than half the MCU.",
-				youtube_title: "Don't skip pizza time",
-				youtube_description: "That line? Totally unscripted. #shorts #spiderman #pizza #viral #facts",
+				reply: accountNumber === 2 ? "omg no way! that's literally my favorite line ever" : "That's actually pretty cool",
+				youtube_title: "Spider-Man 2 fact",
+				youtube_description: "Did you know this? #spiderman #moviefacts #shorts",
 				image_search_terms: [
 					"Spider-Man 2 movie poster",
 					"Spider-Man 2 pizza scene",
@@ -1716,10 +1833,10 @@ Make the image search terms target these controversial elements specifically.`
 				tags: ["spiderman", "tobeymaguire", "pizzatime", "unscripted", "moviefacts"]
 			},
 			"default": {
-				fact: `Did you know? ${topic} has a surprising plot twist that will blow your mind!`,
-				reply: "Wait, what? That changes everything!",
-				youtube_title: `${topic} plot twist`,
-				youtube_description: `You won't believe this ${topic} fact! #shorts #viral #facts #mindblown`,
+				fact: `Did you know? ${topic} has a surprising detail that's really interesting!`,
+				reply: accountNumber === 2 ? "omg that's so cool! love learning new things" : "That's actually pretty interesting",
+				youtube_title: `${topic} fact`,
+				youtube_description: `Interesting fact about ${topic}! #shorts #facts #viral`,
 				image_search_terms: [
 					`${topic} movie poster`,
 					`${topic} official scene`,
@@ -1740,7 +1857,7 @@ Make the image search terms target these controversial elements specifically.`
 					"https://example.com/avatar1.jpg",
 					"https://example.com/avatar2.jpg"
 				],
-				tags: [topic.toLowerCase().replace(/\s+/g, ''), "plotwist", "facts", "viral", "mindblown"]
+				tags: [topic.toLowerCase().replace(/\s+/g, ''), "facts", "viral", "interesting"]
 			}
 		};
 		
@@ -1857,5 +1974,593 @@ function generateRandomHandleAndName() {
 	
 	const handle = getRandomElement(handlePatterns);
 	return { name, handle };
+}
+
+// Helper: create placeholder image buffer
+async function createPlaceholderImageBuffer(width, height, text) {
+	const svg = `
+		<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+			<rect width="100%" height="100%" fill="#f0f0f0"/>
+			<rect x="2" y="2" width="${width-4}" height="${height-4}" fill="#e0e0e0" stroke="#ccc" stroke-width="2"/>
+			<text x="${width/2}" y="${height/2}" font-family="Arial, sans-serif" font-size="16" fill="#666" text-anchor="middle" dominant-baseline="middle">${text}</text>
+		</svg>
+	`;
+	return Buffer.from(svg);
+}
+
+// Helper: get all SVG templates
+function getAllSvgTemplates() {
+	const files = fs.readdirSync('./templates');
+	return files.filter(f => f.match(/^template\d+\.svg$/i));
+}
+
+// Helper: load and render a meme using a specific SVG template
+async function renderSvgTemplate({ templateNum, images, avatar, fact, reply, handle, name, outputPath, overlayPath }) {
+	try {
+		console.log(`[SVG Template] Processing template${templateNum}.svg`);
+		const svgFile = `./templates/template${templateNum}.svg`;
+		
+		if (!fs.existsSync(svgFile)) {
+			throw new Error(`SVG template file not found: ${svgFile}`);
+		}
+		
+		const svgContent = fs.readFileSync(svgFile, 'utf8');
+		const dom = new JSDOM(svgContent, { contentType: 'image/svg+xml' });
+		const doc = dom.window.document;
+
+		// Handle image placeholders in two ways:
+		// 1. Replace <image> elements with placeholder hrefs like {image1_here}
+		const imageElements = Array.from(doc.querySelectorAll('image'));
+		let imgIdx = 0;
+		for (const imageElement of imageElements) {
+			const href = imageElement.getAttribute('href');
+			if (href && (href.includes('{image1_here}') || href.includes('{image2_here}'))) {
+				const x = parseInt(imageElement.getAttribute('x') || '0');
+				const y = parseInt(imageElement.getAttribute('y') || '0');
+				const width = parseInt(imageElement.getAttribute('width'));
+				const height = parseInt(imageElement.getAttribute('height'));
+				
+				if (width && height) {
+					// Remove the image element, we'll composite the real image later
+					imageElement.parentNode.removeChild(imageElement);
+					
+					// Assign image data
+					if (!images[imgIdx]) {
+						images[imgIdx] = { url: null, x, y, width, height };
+					} else {
+						images[imgIdx] = { ...images[imgIdx], x, y, width, height };
+					}
+					imgIdx++;
+				}
+			}
+		}
+
+		// 2. Replace <rect> elements with fill="#CACACA" (legacy support)
+		const rects = Array.from(doc.querySelectorAll('rect'));
+		for (const rect of rects) {
+			const fill = rect.getAttribute('fill');
+			if (fill && (fill === '#CACACA' || fill === '#D1CBCB')) {
+				const x = parseInt(rect.getAttribute('x') || '0');
+				const y = parseInt(rect.getAttribute('y') || '0');
+				const width = parseInt(rect.getAttribute('width'));
+				const height = parseInt(rect.getAttribute('height'));
+				if (width && height) {
+					// Remove the rect, we'll composite the image later
+					rect.parentNode.removeChild(rect);
+					// Create placeholder image if no image provided
+					if (!images[imgIdx]) {
+						images[imgIdx] = { url: null, x, y, width, height };
+					} else {
+						images[imgIdx] = { ...images[imgIdx], x, y, width, height };
+					}
+					imgIdx++;
+				}
+			}
+		}
+		
+		// Handle background overlay replacement - replace #878787 with account-specific overlay
+		const backgroundRects = Array.from(doc.querySelectorAll('rect'));
+		let backgroundOverlay = null;
+		for (const rect of backgroundRects) {
+			const fill = rect.getAttribute('fill');
+			if (fill && fill === '#878787') {
+				const width = parseInt(rect.getAttribute('width') || '1080');
+				const height = parseInt(rect.getAttribute('height') || '1920');
+				const x = parseInt(rect.getAttribute('x') || '0');
+				const y = parseInt(rect.getAttribute('y') || '0');
+				
+				// Remove the background rect, we'll composite the overlay later
+				rect.parentNode.removeChild(rect);
+				
+				// Store background overlay info
+				if (overlayPath) {
+					backgroundOverlay = { url: overlayPath, x, y, width, height };
+				}
+			}
+		}
+
+		// Handle avatar circle placeholder - use overlay as avatar too
+		const circles = Array.from(doc.querySelectorAll('circle'));
+		let avatarOverlay = null;
+		for (const circle of circles) {
+			const fill = circle.getAttribute('fill');
+			if (fill && fill === '#D1CBCB') {
+				const cx = parseInt(circle.getAttribute('cx') || '0');
+				const cy = parseInt(circle.getAttribute('cy') || '0');
+				const r = parseInt(circle.getAttribute('r') || '54');
+				
+				// Remove the circle, we'll composite the avatar later
+				circle.parentNode.removeChild(circle);
+				
+				// Use overlay as avatar (same as background)
+				if (overlayPath) {
+					avatarOverlay = { url: overlayPath, x: cx - r, y: cy - r, width: r * 2, height: r * 2 };
+				}
+			}
+		}
+
+		// Replace standardized text placeholders
+		const textElements = Array.from(doc.querySelectorAll('text, tspan'));
+		for (const textElement of textElements) {
+			let textContent = textElement.textContent;
+			let wasChanged = false;
+			
+			// Replace standardized placeholders
+			if (textContent.includes('{fact_here}')) {
+				textContent = textContent.replace(/\{fact_here\}/g, fact);
+				wasChanged = true;
+			}
+			if (textContent.includes('{reply_here}')) {
+				textContent = textContent.replace(/\{reply_here\}/g, reply);
+				wasChanged = true;
+			}
+			if (textContent.includes('{username_here}')) {
+				textContent = textContent.replace(/\{username_here\}/g, name);
+				wasChanged = true;
+			}
+			if (textContent.includes('{handle_here}')) {
+				textContent = textContent.replace(/\{handle_here\}/g, handle);
+				wasChanged = true;
+			}
+			
+			// Also support legacy placeholders for backward compatibility
+			if (textContent.includes('{fact here}') || textContent.includes('{FACT_HERE}')) {
+				textContent = textContent.replace(/\{fact here\}/gi, fact);
+				wasChanged = true;
+			}
+			if (textContent.includes('{reply here}') || textContent.includes('{REPLY_HERE}')) {
+				textContent = textContent.replace(/\{reply here\}/gi, reply);
+				wasChanged = true;
+			}
+			if (textContent.includes('{username_here}') || textContent.includes('{USERNAME_HERE}')) {
+				textContent = textContent.replace(/\{username_here\}/gi, name);
+				wasChanged = true;
+			}
+			if (textContent.includes('{handle_here}') || textContent.includes('{HANDLE_HERE}')) {
+				textContent = textContent.replace(/\{handle_here\}/gi, handle);
+				wasChanged = true;
+			}
+			
+			// Legacy placeholder format
+			if (textContent.includes('FACT_PLACEHOLDER')) {
+				textContent = textContent.replace('FACT_PLACEHOLDER', fact);
+				wasChanged = true;
+			}
+			if (textContent.includes('REPLY_PLACEHOLDER')) {
+				textContent = textContent.replace('REPLY_PLACEHOLDER', reply);
+				wasChanged = true;
+			}
+			if (textContent.includes('HANDLE_PLACEHOLDER')) {
+				textContent = textContent.replace('HANDLE_PLACEHOLDER', handle);
+				wasChanged = true;
+			}
+			if (textContent.includes('NAME_PLACEHOLDER')) {
+				textContent = textContent.replace('NAME_PLACEHOLDER', name);
+				wasChanged = true;
+			}
+			
+			// Update the text content if it was changed
+			if (wasChanged) {
+				textElement.textContent = textContent;
+			}
+		}
+
+		// Handle text wrapping for long content
+		for (const textElement of textElements) {
+			const textContent = textElement.textContent;
+			if (textContent.length > 120) { // Only wrap very long text
+				const x = parseInt(textElement.getAttribute('x') || '0');
+				const y = parseInt(textElement.getAttribute('y') || '0');
+				const fontSize = parseInt(textElement.getAttribute('font-size') || '24');
+				const fontFamily = textElement.getAttribute('font-family') || 'Arial, sans-serif';
+				const fontWeight = textElement.getAttribute('font-weight') || 'normal';
+				const fill = textElement.getAttribute('fill') || 'black';
+				const textAnchor = textElement.getAttribute('text-anchor') || 'start';
+				
+				// Remove the original text element
+				textElement.remove();
+				
+				// Create wrapped text with proper centering
+				const maxWidth = 750; // Adjust based on your layout to fit in white boxes
+				const lineHeight = fontSize * 1.2;
+				const words = textContent.split(' ');
+				let currentLine = '';
+				let currentY = y;
+				const lines = [];
+				
+				for (const word of words) {
+					const testLine = currentLine + (currentLine ? ' ' : '') + word;
+					if (testLine.length * (fontSize * 0.55) > maxWidth && currentLine) {
+						lines.push(currentLine);
+						currentLine = word;
+					} else {
+						currentLine = testLine;
+					}
+				}
+				
+				// Add the last line
+				if (currentLine) {
+					lines.push(currentLine);
+				}
+				
+				// Limit to 3 lines max to fit in white areas
+				if (lines.length > 3) {
+					lines.splice(3);
+					lines[2] = lines[2] + '...';
+				}
+				
+				// Add all lines with proper spacing
+				for (let i = 0; i < lines.length; i++) {
+					const lineElement = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
+					lineElement.setAttribute('x', x);
+					lineElement.setAttribute('y', currentY);
+					lineElement.setAttribute('font-family', fontFamily);
+					lineElement.setAttribute('font-size', fontSize);
+					lineElement.setAttribute('font-weight', fontWeight);
+					lineElement.setAttribute('fill', fill);
+					lineElement.setAttribute('text-anchor', textAnchor);
+					lineElement.setAttribute('dominant-baseline', 'hanging');
+					lineElement.textContent = lines[i];
+					doc.documentElement.appendChild(lineElement);
+					
+					currentY += lineHeight;
+				}
+			}
+		}
+
+		// Save the modified SVG to a temp file
+		const tempSvg = outputPath.replace(/\.png$/, '.svg');
+		fs.writeFileSync(tempSvg, doc.documentElement.outerHTML);
+
+		// Render SVG to PNG
+		let sharpPipeline = sharp(tempSvg).resize(1080, 1920);
+
+		// Composite images into the PNG
+		const composites = [];
+		
+		// First, add background overlay if present
+		if (backgroundOverlay) {
+			let bgBuf;
+			try {
+				bgBuf = await fs.promises.readFile(backgroundOverlay.url);
+				bgBuf = await sharp(bgBuf).resize(backgroundOverlay.width, backgroundOverlay.height).toBuffer();
+				composites.push({ input: bgBuf, top: backgroundOverlay.y, left: backgroundOverlay.x });
+				console.log(`[SVG Template] Added background overlay: ${backgroundOverlay.url}`);
+			} catch (error) {
+				console.log(`[SVG Template] Failed to load background overlay ${backgroundOverlay.url}: ${error.message}`);
+			}
+		}
+		
+		// Add regular images
+		for (const img of images) {
+			if (img && img.x !== undefined && img.width && img.height) {
+				let imgBuf;
+				if (img.buffer) {
+					// Use cached buffer
+					imgBuf = img.buffer;
+				} else if (img.url && img.url.startsWith('http')) {
+					// Download if not cached with better error handling
+					try {
+						const resp = await axios.get(img.url, { 
+							responseType: 'arraybuffer',
+							timeout: 15000,
+							headers: {
+								'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+							}
+						});
+						imgBuf = Buffer.from(resp.data);
+					} catch (downloadError) {
+						console.log(`[SVG Template] Failed to download image ${img.url}: ${downloadError.message}`);
+						// Create placeholder image instead
+						imgBuf = await createPlaceholderImageBuffer(img.width, img.height, 'Image Placeholder');
+					}
+				} else if (img.url) {
+					// Local file
+					try {
+						imgBuf = await fs.promises.readFile(img.url);
+					} catch (error) {
+						console.log(`[SVG Template] Failed to read local image ${img.url}: ${error.message}`);
+						// Create placeholder image instead
+						imgBuf = await createPlaceholderImageBuffer(img.width, img.height, 'Image Placeholder');
+					}
+				} else {
+					// No image provided, create placeholder
+					imgBuf = await createPlaceholderImageBuffer(img.width, img.height, 'Image Placeholder');
+				}
+				
+				// Ensure width and height are valid numbers
+				const width = parseInt(img.width);
+				const height = parseInt(img.height);
+				if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+					console.log(`[SVG Template] Invalid dimensions for image: ${img.url}, skipping`);
+					continue;
+				}
+				
+				imgBuf = await sharp(imgBuf).resize(width, height).toBuffer();
+				composites.push({ input: imgBuf, top: img.y, left: img.x });
+			}
+		}
+		// Add avatar overlay (circular, using the same overlay as background)
+		if (avatarOverlay) {
+			let avatarBuf;
+			try {
+				avatarBuf = await fs.promises.readFile(avatarOverlay.url);
+				
+				// Make the avatar circular
+				const size = Math.min(avatarOverlay.width, avatarOverlay.height);
+				avatarBuf = await sharp(avatarBuf)
+					.resize(size, size)
+					.composite([
+						{
+							input: Buffer.from(`<svg width='${size}' height='${size}'><circle cx='${size/2}' cy='${size/2}' r='${size/2}' fill='white'/></svg>`),
+							blend: 'dest-in'
+						}
+					])
+					.png()
+					.toBuffer();
+				composites.push({ input: avatarBuf, top: avatarOverlay.y, left: avatarOverlay.x });
+				console.log(`[SVG Template] Added avatar overlay: ${avatarOverlay.url}`);
+			} catch (error) {
+				console.log(`[SVG Template] Failed to load avatar overlay ${avatarOverlay.url}: ${error.message}`);
+			}
+		}
+
+		// Create the final composition with proper layering
+		// Strategy: Start with background overlay, then add SVG content, then other images
+		
+		let baseComposition;
+		const allComposites = [];
+		
+		// Step 1: Start with background overlay as base if it exists
+		if (backgroundOverlay) {
+			try {
+				const bgBuffer = await fs.promises.readFile(backgroundOverlay.url);
+				baseComposition = sharp(bgBuffer).resize(1080, 1920);
+				console.log(`[SVG Template] Using background overlay as base: ${backgroundOverlay.url}`);
+			} catch (error) {
+				console.log(`[SVG Template] Failed to load background overlay, using SVG as base: ${error.message}`);
+				baseComposition = sharp(tempSvg).resize(1080, 1920);
+			}
+		} else {
+			// No background overlay, use SVG as base
+			baseComposition = sharp(tempSvg).resize(1080, 1920);
+		}
+		
+		// Step 2: Add SVG content (white containers and text) on top of background
+		if (backgroundOverlay) {
+			const svgBuffer = await sharp(tempSvg).resize(1080, 1920).png().toBuffer();
+			allComposites.push({ input: svgBuffer, top: 0, left: 0, blend: 'over' });
+		}
+		
+		// Step 3: Add regular images (excluding background overlay which we already used)
+		for (const composite of composites) {
+			// Skip the background overlay since we already used it as base
+			if (backgroundOverlay && composite.input && composite.top === 0 && composite.left === 0) {
+				continue;
+			}
+			allComposites.push(composite);
+		}
+		
+		// Step 4: Apply all composites
+		if (allComposites.length > 0) {
+			await baseComposition
+				.composite(allComposites)
+				.png()
+				.toFile(outputPath);
+		} else {
+			// No composites, just render the base
+			await baseComposition
+				.png()
+				.toFile(outputPath);
+		}
+		
+		console.log(`[SVG Template] Successfully rendered template${templateNum} to ${outputPath}`);
+	} catch (error) {
+		console.error(`[SVG Template] Error processing template${templateNum}:`, error.message);
+		throw error;
+	}
+}
+
+// Generate videos for all accounts with the same content
+async function generateForAllAccounts(topic, scheduledPublishDate, isBatchMode = false) {
+	console.log('🎬 Generating videos for all accounts...');
+	
+	// Get content once for all accounts
+	const { fact, reply, youtube_title, youtube_description, image_search_terms, avatar_search_terms, image_urls, avatar_urls, handle, name, tags } = await getFactAndWittyReply(topic, 1);
+	console.log(`\n📝 Fact: ${fact}\n💬 Witty reply: ${reply}\n📺 YouTube Title: ${youtube_title}\n📝 YouTube Description: ${youtube_description}`);
+
+	// Create date-based output folder structure
+	const now = new Date();
+	const dateFolder = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+	const timeString = now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14); // YYYYMMDDHHMMSS format
+	const sanitizedTitle = sanitizeFilename(youtube_title);
+	const baseRunFolder = `./output/${dateFolder}/${sanitizedTitle}_${timeString}`;
+	
+	// Save the full ChatGPT response as JSON in the output folder
+	const gptResponsePath = `${baseRunFolder}/gpt_response.json`;
+	if (!fs.existsSync(baseRunFolder)) fs.mkdirSync(baseRunFolder, { recursive: true });
+	fs.writeFileSync(gptResponsePath, JSON.stringify({ fact, reply, youtube_title, youtube_description, image_search_terms, avatar_search_terms, image_urls, avatar_urls, tags }, null, 2));
+
+	// Use the image URLs provided by GPT - they're already perfect and relevant!
+	let finalImageUrls = [null, null];
+	console.log(`[DEBUG] GPT provided ${image_urls ? image_urls.length : 0} image URLs and ${image_search_terms ? image_search_terms.length : 0} search terms`);
+	
+	// Use the first two image URLs from GPT response
+	if (image_urls && image_urls.length >= 2) {
+		finalImageUrls = [image_urls[0], image_urls[1]];
+		console.log('[DEBUG] Using GPT-provided image URLs:', finalImageUrls);
+	} else if (image_urls && image_urls.length === 1) {
+		finalImageUrls = [image_urls[0], null];
+		console.log('[DEBUG] Using 1 GPT-provided image URL:', finalImageUrls[0]);
+	} else {
+		console.log('[DEBUG] No GPT image URLs available, using placeholders');
+		finalImageUrls = [null, null]; // null means use placeholder
+	}
+
+	// Force template2 for testing
+	const selectedTemplate = 'svg2';
+	console.log(`[Template] Using template: ${selectedTemplate} (forced for testing)`);
+
+	// Generate for each account
+	const accounts = [1, 2, 3];
+	const results = [];
+
+	for (const accountNum of accounts) {
+		console.log(`\n🎬 Generating for Account ${accountNum}...`);
+		
+		try {
+			// Create account-specific folder
+			const accountRunFolder = `${baseRunFolder}/account_${accountNum}`;
+			if (!fs.existsSync(accountRunFolder)) fs.mkdirSync(accountRunFolder, { recursive: true });
+			
+			// Get account-specific overlay
+			const overlayPath = getRandomOverlay(accountNum);
+			console.log(`[DEBUG] Using overlay for account ${accountNum}: ${overlayPath}`);
+
+			// Get account-specific content (different handle/name/avatar/images for each account)
+			const accountContent = await getFactAndWittyReply(topic, accountNum);
+			const characterName = accountContent.name || 'Character Name';
+			const characterHandle = accountContent.handle || '@character';
+			// Use account-specific images and avatar
+			let accountImageUrls = [null, null];
+			if (accountContent.image_urls && accountContent.image_urls.length >= 2) {
+				accountImageUrls = [accountContent.image_urls[0], accountContent.image_urls[1]];
+			} else if (accountContent.image_urls && accountContent.image_urls.length === 1) {
+				accountImageUrls = [accountContent.image_urls[0], null];
+			}
+			// Fix avatar handling - ensure it's a string URL or null
+			let accountAvatar = null;
+			if (accountContent.avatar_urls && accountContent.avatar_urls[0] && typeof accountContent.avatar_urls[0] === 'string') {
+				accountAvatar = accountContent.avatar_urls[0];
+			}
+
+			// Define output paths for this account
+			const framePath = `${accountRunFolder}/frame.png`;
+			const videoPath = `${accountRunFolder}/video.mp4`;
+			const debugSvgPath = `${accountRunFolder}/debug_text.svg`;
+
+			console.log('🎨 Generating template with images:', accountImageUrls);
+			console.log('🎨 Using avatar:', accountAvatar);
+			
+			try {
+				if (typeof selectedTemplate === 'string' && selectedTemplate.startsWith('svg')) {
+					const templateNum = selectedTemplate.replace('svg', '');
+					await renderSvgTemplate({
+						templateNum,
+						images: [
+							{ url: accountImageUrls[0] },
+							{ url: accountImageUrls[1] }
+						],
+						avatar: accountAvatar,
+						fact: accountContent.fact,
+						reply: accountContent.reply,
+						handle: characterHandle,
+						name: characterName,
+						outputPath: framePath,
+						overlayPath: overlayPath
+					});
+					console.log(`✅ SVG template generation completed for account ${accountNum}!`);
+				} else {
+					await selectedTemplate({
+						overlayPath: overlayPath,
+						image1: accountImageUrls[0],
+						image2: accountImageUrls[1],
+						fact: accountContent.fact,
+						reply: accountContent.reply,
+						outputPath: framePath,
+						debugSvgPath,
+						avatarPath: overlayPath, // Use overlay as avatar background
+						handle: characterHandle,
+						name: characterName
+					});
+					console.log(`✅ Template generation completed for account ${accountNum}!`);
+				}
+			} catch (templateError) {
+				console.error(`❌ Template generation failed for account ${accountNum}:`, templateError.message);
+				results.push({ account: accountNum, success: false, error: templateError.message });
+				continue;
+			}
+
+			console.log('🎥 Creating video...');
+			try {
+				await createVideo(framePath, videoPath);
+				console.log(`✅ Video creation completed for account ${accountNum}!`);
+			} catch (videoError) {
+				console.error(`❌ Video creation failed for account ${accountNum}:`, videoError.message);
+				results.push({ account: accountNum, success: false, error: videoError.message });
+				continue;
+			}
+
+			// Upload to YouTube if not in batch mode
+			if (!isBatchMode) {
+				try {
+					console.log(`📺 Uploading to YouTube for account ${accountNum}...`);
+					await uploadAndScheduleYouTubeShort(
+						videoPath,
+						youtube_title,
+						youtube_description,
+						scheduledPublishDate,
+						accountNum
+					);
+					console.log(`✅ YouTube upload completed for account ${accountNum}!`);
+				} catch (uploadError) {
+					console.error(`❌ YouTube upload failed for account ${accountNum}:`, uploadError.message);
+				}
+			}
+
+			results.push({ 
+				account: accountNum, 
+				success: true, 
+				framePath, 
+				videoPath, 
+				overlayPath 
+			});
+
+			console.log(`🎉 Account ${accountNum} complete!`);
+			console.log(`📁 Output files:`);
+			console.log(`   - ${framePath} (composed image)`);
+			console.log(`   - ${videoPath} (final video)`);
+			console.log(`   - ${debugSvgPath} (debug SVG)`);
+
+		} catch (error) {
+			console.error(`❌ Failed to generate for account ${accountNum}:`, error.message);
+			results.push({ account: accountNum, success: false, error: error.message });
+		}
+	}
+
+	// Summary
+	console.log('\n📊 Generation Summary:');
+	const successful = results.filter(r => r.success);
+	const failed = results.filter(r => !r.success);
+	
+	console.log(`✅ Successful: ${successful.length}/3 accounts`);
+	successful.forEach(r => console.log(`   - Account ${r.account}: ${r.videoPath}`));
+	
+	if (failed.length > 0) {
+		console.log(`❌ Failed: ${failed.length}/3 accounts`);
+		failed.forEach(r => console.log(`   - Account ${r.account}: ${r.error}`));
+	}
+
+	return results;
 }
 
