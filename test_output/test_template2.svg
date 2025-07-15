@@ -1,83 +1,26 @@
 <svg width="1080" height="1920" viewBox="0 0 1080 1920" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background -->
-  <rect width="1080" height="1920" fill="#878787"/>
-  
-  <!-- Main content area - Image placeholders -->
-  <g filter="url(#filter0_d)">
-    <rect x="97" y="467" width="433" height="703" rx="15" fill="#CACACA"/>
-    <!-- Image placeholder for left side -->
-    <image x="97" y="467" width="433" height="703" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZmY2YjNiIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSAxPC90ZXh0Pjwvc3ZnPg==" preserveAspectRatio="xMidYMid slice"/>
-  </g>
-  <g filter="url(#filter1_d)">
-    <rect x="543" y="467" width="433" height="703" rx="15" fill="#CACACA"/>
-    <!-- Image placeholder for right side -->
-    <image x="543" y="467" width="433" height="703" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNGNhZjUwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSAyPC90ZXh0Pjwvc3ZnPg==" preserveAspectRatio="xMidYMid slice"/>
-  </g>
-  
-  <!-- Text content area -->
-  <g filter="url(#filter2_d)">
-    <rect x="97" y="1208" width="879" height="369" rx="15" fill="white"/>
-  </g>
-  
-  <!-- Top text area -->
-  <g filter="url(#filter3_d)">
-    <rect x="103" y="104" width="879" height="325" rx="15" fill="white"/>
-  </g>
-  
-  <!-- Avatar circle -->
-  <circle cx="198" cy="1317" r="54" fill="#D1CBCB"/>
-  
-  <!-- Text elements positioned within their respective white areas -->
-  <!-- Top text area: x="103" y="104" width="879" height="325" -->
-  <!-- Center x = 103 + 879/2 = 542.5, Center y = 104 + 325/2 = 266.5 -->
-  <text x="542.5" y="266.5" text-anchor="middle" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="black">Did you know that Spider-Man was originally going to be called 'The Human Spider'?</text>
-  
-  <!-- Bottom text area: x="97" y="1208" width="879" height="369" -->
-  <!-- Center x = 97 + 879/2 = 536.5 -->
-  <text x="536.5" y="1380" text-anchor="middle" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="black">Imagine if he had to say 'I am the Human Spider' every time he swung into action. That would be... interesting.</text>
-  <text x="536.5" y="1480" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" fill="black">Spider-Man Facts</text>
-  <text x="536.5" y="1520" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" fill="black">@spiderman_facts</text>
-  
-  <defs>
-    <filter id="filter0_d" x="93" y="467" width="441" height="711" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
-      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-      <feOffset dy="4"/>
-      <feGaussianBlur stdDeviation="2"/>
-      <feComposite in2="hardAlpha" operator="out"/>
-      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
-      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
-      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
-    </filter>
-    <filter id="filter1_d" x="539" y="467" width="441" height="711" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
-      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-      <feOffset dy="4"/>
-      <feGaussianBlur stdDeviation="2"/>
-      <feComposite in2="hardAlpha" operator="out"/>
-      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
-      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
-      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
-    </filter>
-    <filter id="filter2_d" x="93" y="1208" width="887" height="377" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
-      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-      <feOffset dy="4"/>
-      <feGaussianBlur stdDeviation="2"/>
-      <feComposite in2="hardAlpha" operator="out"/>
-      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
-      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
-      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
-    </filter>
-    <filter id="filter3_d" x="99" y="104" width="887" height="333" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
-      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-      <feOffset dy="4"/>
-      <feGaussianBlur stdDeviation="2"/>
-      <feComposite in2="hardAlpha" operator="out"/>
-      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
-      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
-      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
-    </filter>
-  </defs>
+<!-- Background - will be replaced with account overlay -->
+<rect width="1080" height="1920" fill="#878787"/>
+
+<!-- Image placeholders - will be replaced with actual images -->
+<rect x="97" y="467" width="433" height="703" rx="15" fill="#CACACA"/>
+<rect x="543" y="467" width="433" height="703" rx="15" fill="#CACACA"/>
+
+<!-- White text areas -->
+<rect x="103" y="104" width="879" height="325" rx="15" fill="white"/>
+<rect x="97" y="1208" width="879" height="369" rx="15" fill="white"/>
+
+<!-- Fact text placeholder -->
+<text x="542.5" y="266" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="black" text-anchor="middle" dominant-baseline="middle">This is a very long fact about Hot Rod that will definitely require multiple lines and should cause the white container to dynamically resize to accommodate all the text content without truncation or overflow issues. The container should grow to fit this extremely long content properly and maintain good visual hierarchy and spacing throughout the entire layout.</text>
+
+<!-- Reply text placeholder -->
+<text x="536.5" y="1340" font-family="Arial, sans-serif" font-size="22" font-weight="normal" fill="black" text-anchor="middle" dominant-baseline="hanging">Imagine if he had to say 'I am the Human Spider' every time he swung into action. That would be... interesting.</text>
+
+<!-- Username and handle placeholders -->
+<text x="280" y="1260" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="black" text-anchor="start" dominant-baseline="hanging">Spider-Man Facts</text>
+<text x="280" y="1285" font-family="Arial, sans-serif" font-size="16" font-weight="normal" fill="gray" text-anchor="start" dominant-baseline="hanging">@spiderman_facts</text>
+
+<!-- Avatar circle placeholder - will be replaced with account overlay -->
+<circle cx="170" cy="1270" r="35" fill="#D1CBCB"/>
+
 </svg>

@@ -6,7 +6,13 @@
   "scripts": {
     "schedule-example": "node scripts/generateMeme.js --batch-schedule=10-25,5,2.25,The Godfather,1",
     "start": "node scripts/generateMeme.js",
-    "generate": "node scripts/generateMeme.js"
+    "generate": "node scripts/generateMeme.js",
+    "template1": "node scripts/generateMeme.js --template=1",
+    "template2": "node scripts/generateMeme.js --template=2",
+    "template3": "node scripts/generateMeme.js --template=3",
+    "template4": "node scripts/generateMeme.js --template=4",
+    "template5": "node scripts/generateMeme.js --template=5",
+    "test-templates": "node scripts/testTemplateSelection.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
