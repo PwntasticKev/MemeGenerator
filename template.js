@@ -44,12 +44,13 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
   const CARD_X = (WIDTH - CARD_WIDTH) / 2
   const CARD_Y = 120
 
-  // Layout positions - FIXED: Proper dynamic positioning
+  // Layout positions - FIXED: Proper dynamic positioning with wider images
   const FACT_Y = CARD_Y + 60
-  const IMAGE_WIDTH = 400
+  const IMAGE_WIDTH = 460 // Increased from 400 to 460 for wider images
   const IMAGE_HEIGHT = 300
+  const GAP_BETWEEN_IMAGES = 20 // Small gap between images
   const LEFT_IMAGE_X = CARD_X + 60
-  const RIGHT_IMAGE_X = CARD_X + CARD_WIDTH - IMAGE_WIDTH - 60
+  const RIGHT_IMAGE_X = LEFT_IMAGE_X + IMAGE_WIDTH + GAP_BETWEEN_IMAGES
 
   const AVATAR_SIZE = 80
   const AVATAR_X = CARD_X + 60
@@ -116,29 +117,25 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
     ctx.save()
     ctx.fillStyle = gradient
     if (isLeft) {
-      // Left image: round left corners
+      // Left image: ONLY round left corners (top-left and bottom-left)
       ctx.beginPath()
-      ctx.moveTo(x + 20, y)
-      ctx.lineTo(x + width - 20, y)
-      ctx.quadraticCurveTo(x + width, y, x + width, y + 20)
-      ctx.lineTo(x + width, y + height - 20)
-      ctx.quadraticCurveTo(x + width, y + height, x + width - 20, y + height)
-      ctx.lineTo(x + 20, y + height)
-      ctx.quadraticCurveTo(x, y + height, x, y + height - 20)
-      ctx.lineTo(x, y + 20)
-      ctx.quadraticCurveTo(x, y, x + 20, y)
+      ctx.moveTo(x + 20, y) // Start with rounded top-left
+      ctx.lineTo(x + width, y) // Straight line to right edge (no top-right radius)
+      ctx.lineTo(x + width, y + height) // Straight line down right edge (no bottom-right radius)
+      ctx.lineTo(x + 20, y + height) // Line to rounded bottom-left
+      ctx.quadraticCurveTo(x, y + height, x, y + height - 20) // Bottom-left curve
+      ctx.lineTo(x, y + 20) // Line up left edge
+      ctx.quadraticCurveTo(x, y, x + 20, y) // Top-left curve
     } else {
-      // Right image: round right corners
+      // Right image: ONLY round right corners (top-right and bottom-right)
       ctx.beginPath()
-      ctx.moveTo(x, y)
-      ctx.lineTo(x + width - 20, y)
-      ctx.quadraticCurveTo(x + width, y, x + width, y + 20)
-      ctx.lineTo(x + width, y + height - 20)
-      ctx.quadraticCurveTo(x + width, y + height, x + width - 20, y + height)
-      ctx.lineTo(x, y + height)
-      ctx.quadraticCurveTo(x, y + height, x, y + height - 20)
-      ctx.lineTo(x, y + 20)
-      ctx.quadraticCurveTo(x, y, x, y)
+      ctx.moveTo(x, y) // Start at left edge (no top-left radius)
+      ctx.lineTo(x + width - 20, y) // Line to rounded top-right
+      ctx.quadraticCurveTo(x + width, y, x + width, y + 20) // Top-right curve
+      ctx.lineTo(x + width, y + height - 20) // Line down right edge
+      ctx.quadraticCurveTo(x + width, y + height, x + width - 20, y + height) // Bottom-right curve
+      ctx.lineTo(x, y + height) // Straight line to left edge (no bottom-left radius)
+      ctx.lineTo(x, y) // Straight line up left edge (no top-left radius)
     }
     ctx.closePath()
     ctx.fill()
@@ -179,18 +176,16 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
       }
       const img = await canvas.loadImage(imgBuf)
 
-      // Draw left image with rounded corners (top-left and bottom-left corners rounded)
+      // Draw left image with rounded corners (ONLY top-left and bottom-left corners rounded)
       ctx.save()
       ctx.beginPath()
-      ctx.moveTo(LEFT_IMAGE_X + 20, IMAGE_Y)
-      ctx.lineTo(LEFT_IMAGE_X + IMAGE_WIDTH - 20, IMAGE_Y)
-      ctx.quadraticCurveTo(LEFT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y, LEFT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + 20)
-      ctx.lineTo(LEFT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + IMAGE_HEIGHT - 20)
-      ctx.quadraticCurveTo(LEFT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + IMAGE_HEIGHT, LEFT_IMAGE_X + IMAGE_WIDTH - 20, IMAGE_Y + IMAGE_HEIGHT)
-      ctx.lineTo(LEFT_IMAGE_X + 20, IMAGE_Y + IMAGE_HEIGHT)
-      ctx.quadraticCurveTo(LEFT_IMAGE_X, IMAGE_Y + IMAGE_HEIGHT, LEFT_IMAGE_X, IMAGE_Y + IMAGE_HEIGHT - 20)
-      ctx.lineTo(LEFT_IMAGE_X, IMAGE_Y + 20)
-      ctx.quadraticCurveTo(LEFT_IMAGE_X, IMAGE_Y, LEFT_IMAGE_X + 20, IMAGE_Y)
+      ctx.moveTo(LEFT_IMAGE_X + 20, IMAGE_Y) // Start with rounded top-left
+      ctx.lineTo(LEFT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y) // Straight line to right edge (no top-right radius)
+      ctx.lineTo(LEFT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + IMAGE_HEIGHT) // Straight line down right edge (no bottom-right radius)
+      ctx.lineTo(LEFT_IMAGE_X + 20, IMAGE_Y + IMAGE_HEIGHT) // Line to rounded bottom-left
+      ctx.quadraticCurveTo(LEFT_IMAGE_X, IMAGE_Y + IMAGE_HEIGHT, LEFT_IMAGE_X, IMAGE_Y + IMAGE_HEIGHT - 20) // Bottom-left curve
+      ctx.lineTo(LEFT_IMAGE_X, IMAGE_Y + 20) // Line up left edge
+      ctx.quadraticCurveTo(LEFT_IMAGE_X, IMAGE_Y, LEFT_IMAGE_X + 20, IMAGE_Y) // Top-left curve
       ctx.closePath()
       ctx.clip()
       ctx.drawImage(img, LEFT_IMAGE_X, IMAGE_Y, IMAGE_WIDTH, IMAGE_HEIGHT)
@@ -230,18 +225,16 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
       }
       const img = await canvas.loadImage(imgBuf)
 
-      // Draw right image with rounded corners (top-right and bottom-right corners rounded)
+      // Draw right image with rounded corners (ONLY top-right and bottom-right corners rounded)
       ctx.save()
       ctx.beginPath()
-      ctx.moveTo(RIGHT_IMAGE_X, IMAGE_Y)
-      ctx.lineTo(RIGHT_IMAGE_X + IMAGE_WIDTH - 20, IMAGE_Y)
-      ctx.quadraticCurveTo(RIGHT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y, RIGHT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + 20)
-      ctx.lineTo(RIGHT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + IMAGE_HEIGHT - 20)
-      ctx.quadraticCurveTo(RIGHT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + IMAGE_HEIGHT, RIGHT_IMAGE_X + IMAGE_WIDTH - 20, IMAGE_Y + IMAGE_HEIGHT)
-      ctx.lineTo(RIGHT_IMAGE_X, IMAGE_Y + IMAGE_HEIGHT)
-      ctx.quadraticCurveTo(RIGHT_IMAGE_X, IMAGE_Y + IMAGE_HEIGHT, RIGHT_IMAGE_X, IMAGE_Y + IMAGE_HEIGHT - 20)
-      ctx.lineTo(RIGHT_IMAGE_X, IMAGE_Y + 20)
-      ctx.quadraticCurveTo(RIGHT_IMAGE_X, IMAGE_Y, RIGHT_IMAGE_X, IMAGE_Y)
+      ctx.moveTo(RIGHT_IMAGE_X, IMAGE_Y) // Start at left edge (no top-left radius)
+      ctx.lineTo(RIGHT_IMAGE_X + IMAGE_WIDTH - 20, IMAGE_Y) // Line to rounded top-right
+      ctx.quadraticCurveTo(RIGHT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y, RIGHT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + 20) // Top-right curve
+      ctx.lineTo(RIGHT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + IMAGE_HEIGHT - 20) // Line down right edge
+      ctx.quadraticCurveTo(RIGHT_IMAGE_X + IMAGE_WIDTH, IMAGE_Y + IMAGE_HEIGHT, RIGHT_IMAGE_X + IMAGE_WIDTH - 20, IMAGE_Y + IMAGE_HEIGHT) // Bottom-right curve
+      ctx.lineTo(RIGHT_IMAGE_X, IMAGE_Y + IMAGE_HEIGHT) // Straight line to left edge (no bottom-left radius)
+      ctx.lineTo(RIGHT_IMAGE_X, IMAGE_Y) // Straight line up left edge (no top-left radius)
       ctx.closePath()
       ctx.clip()
       ctx.drawImage(img, RIGHT_IMAGE_X, IMAGE_Y, IMAGE_WIDTH, IMAGE_HEIGHT)
