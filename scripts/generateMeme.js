@@ -122,7 +122,7 @@ IMPORTANT:
     })
 
     const responseText = completion.data.choices[0].message.content.trim()
-    console.log('[DEBUG] Raw GPT response:', responseText)
+    // console.log('[DEBUG] Raw GPT response:', responseText) // Removed debug call to prevent duplicate ChatGPT calls
 
     // Try to parse JSON response
     let gptResponse
@@ -176,7 +176,7 @@ IMPORTANT:
 async function getFactAndWittyReply (topic, accountNumber = 1) {
   try {
     const gptResponse = await callCustomGpt(topic, accountNumber)
-    console.log('[DEBUG] Custom GPT response:', gptResponse)
+    // console.log('[DEBUG] Custom GPT response:', gptResponse) // Removed debug call to prevent duplicate ChatGPT calls
     return gptResponse
   } catch (error) {
     console.error('❌ Error getting meme data from custom GPT:', error.message)
@@ -952,7 +952,7 @@ function getRandomOverlay (accountNumber = 1) {
     console.log(`[WARNING] Account directory ${overlayDir} not found, falling back to assets`)
     const fallbackDir = './assets'
     const files = fs.readdirSync(fallbackDir)
-    const overlays = files.filter(f => f.startsWith('mainoverlay_') && (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')))
+    const overlays = files.filter(f => f.startsWith('mainoverlay_') && (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg') || f.endsWith('.mp4')))
     if (overlays.length === 0) return './assets/overlay.png'
     // Shuffle overlays for true randomness
     for (let i = overlays.length - 1; i > 0; i--) {
@@ -964,7 +964,7 @@ function getRandomOverlay (accountNumber = 1) {
   }
 
   const files = fs.readdirSync(overlayDir)
-  const overlays = files.filter(f => f.startsWith('mainoverlay_') && (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')))
+  const overlays = files.filter(f => f.startsWith('mainoverlay_') && (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg') || f.endsWith('.mp4')))
   if (overlays.length === 0) {
     console.log(`[WARNING] No overlays found in ${overlayDir}, falling back to assets`)
     return getRandomOverlay() // Recursive call with default account

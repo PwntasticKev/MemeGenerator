@@ -15,6 +15,7 @@
     "test-templates": "node scripts/testTemplateSelection.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0",
     "axios": "^1.6.0",
     "canvas": "^3.1.2",
     "cheerio": "^1.0.0-rc.12",
