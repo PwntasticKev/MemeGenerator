@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.memegenerator.daily</string>
+
+    <!-- Calls Node DIRECTLY (Node lives in ~/.nvm, which is NOT a macOS-protected
+         folder, so launchd can launch it). Node reads the project via absolute
+         paths; grant Full Disk Access to THIS node binary so it can read/write
+         the project inside ~/Documents. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/kevinlee/.nvm/versions/node/v22.12.0/bin/node</string>
+        <string>/Users/kevinlee/Documents/code/MemeGenerator/scripts/dailyRun.js</string>
+    </array>
+
+    <!-- ffmpeg/ffprobe live in homebrew; put them on PATH for the child process. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <!-- Fire once a day at 10:00 local time. Adjust Hour/Minute to taste. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>10</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/kevinlee/Documents/code/MemeGenerator/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/kevinlee/Documents/code/MemeGenerator/logs/launchd.err.log</string>
+</dict>
+</plist>

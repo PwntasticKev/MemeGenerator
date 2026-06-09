@@ -1,0 +1,455 @@
+{
+  "assets/mainoverlay_1.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "drama"
+    ],
+    "character": "Bald cartoon man smiling and giving two thumbs up, wearing a blue shirt",
+    "background": "Plain dark slate-blue/charcoal textured background with no rays or pattern; slightly somber but plain"
+  },
+  "assets/mainoverlay_2.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "comedy"
+    ],
+    "character": "Bald cartoon man smiling and giving two thumbs up, wearing a blue shirt",
+    "background": "Warm orange/tan halftone dotted gradient background; bright and lighthearted, no strong vibe"
+  },
+  "assets/mainoverlay_3.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "comedy"
+    ],
+    "character": "Bald cartoon man smiling and giving two thumbs up, wearing a blue shirt",
+    "background": "Orange/red retro sunburst rays radiating from center; energetic but generic positive"
+  },
+  "assets/mainoverlay_4.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "drama"
+    ],
+    "character": "Bald cartoon man smiling and giving two thumbs up, wearing a teal shirt",
+    "background": "Teal/dark green grungy vintage sunburst rays; slightly moody retro tone"
+  },
+  "assets/mainoverlay_5.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "drama"
+    ],
+    "character": "Bald cartoon man smiling and giving two thumbs up, wearing a blue shirt",
+    "background": "Dark navy-blue sunburst rays radiating from center; muted and slightly somber"
+  },
+  "assets/mainoverlay_6.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "scifi"
+    ],
+    "character": "Smiling bald cartoon man in a blue shirt giving a double thumbs-up",
+    "background": "Dark navy textured backdrop scattered with faint geometric shapes (stars, circles, triangles)"
+  },
+  "assets/mainoverlay_7.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral"
+    ],
+    "character": "Smiling bald cartoon man in a grey shirt giving a double thumbs-up",
+    "background": "Plain dark grey dotted/halftone texture, no distinct scenery"
+  },
+  "oldoverlays/mainoverlay_1.png": {
+    "primaryMood": "action",
+    "moods": [
+      "action",
+      "thriller"
+    ],
+    "character": "Smiling bald cartoon man in a blue shirt giving a double thumbs-up",
+    "background": "Bright daytime cityscape with a large orange mushroom-cloud explosion rising behind the skyscrapers"
+  },
+  "oldoverlays/mainoverlay_10.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "action",
+      "drama"
+    ],
+    "character": "Smiling bald cartoon man in a blue shirt giving a double thumbs-up",
+    "background": "Apocalyptic wasteland of rubble and debris under a red sky with a nuclear mushroom-cloud explosion"
+  },
+  "oldoverlays/mainoverlay_11.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "action",
+      "drama"
+    ],
+    "character": "Smiling bald cartoon man in a blue shirt giving a double thumbs-up",
+    "background": "Scorched red wasteland with broken buildings, power lines, and a fiery mushroom-cloud explosion under a crimson sky"
+  },
+  "oldoverlays/mainoverlay_12.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Sunny city street with skyscrapers and a clear blue sky, calm and pleasant"
+  },
+  "oldoverlays/mainoverlay_13.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "drama",
+      "action"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Bleak post-apocalyptic wasteland of rubble, broken power lines and a destroyed car under a brown smoky sky"
+  },
+  "oldoverlays/mainoverlay_14.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "drama"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "London skyline with Big Ben and Tower Bridge along the river under a bright cloudy sky"
+  },
+  "oldoverlays/mainoverlay_15.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "drama"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Snowy winter cityscape with a capitol dome, buildings and a pine tree under falling snow, muted cold tones"
+  },
+  "oldoverlays/mainoverlay_16.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Salt Lake City scene with the LDS temple, downtown buildings, green trees and mountains under a bright blue sky"
+  },
+  "oldoverlays/mainoverlay_17.png": {
+    "primaryMood": "fantasy",
+    "moods": [
+      "fantasy",
+      "neutral"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling cheerfully",
+    "background": "Bright blue sky with fluffy clouds, glowing halo, sunburst rays, and an ethereal cathedral/temple silhouette evoking a heavenly, celestial scene"
+  },
+  "oldoverlays/mainoverlay_18.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "action"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling cheerfully",
+    "background": "Fiery hellish landscape with rivers of lava, jagged rocks, and towering flames in red and orange"
+  },
+  "oldoverlays/mainoverlay_19.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "action"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling cheerfully",
+    "background": "Dark, ominous inferno of fire and lava with rising flames and a deep red glowing wasteland"
+  },
+  "oldoverlays/mainoverlay_2.png": {
+    "primaryMood": "scifi",
+    "moods": [
+      "scifi",
+      "action"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling cheerfully",
+    "background": "Vibrant post-apocalyptic wasteland with rubble, downed power lines, a wrecked car, and a surreal teal-and-pink sky"
+  },
+  "oldoverlays/mainoverlay_20.png": {
+    "primaryMood": "fantasy",
+    "moods": [
+      "fantasy",
+      "thriller"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling cheerfully",
+    "background": "Massive menacing scaled dragon looming over a dark, misty mountain landscape with a gothic castle spire in the distance"
+  },
+  "oldoverlays/mainoverlay_21.png": {
+    "primaryMood": "fantasy",
+    "moods": [
+      "fantasy",
+      "horror"
+    ],
+    "character": "Bald cartoon guy in a blue shirt giving a double thumbs-up with a big smile",
+    "background": "A large menacing horned red dragon looming over a fiery, lava-filled landscape with flames"
+  },
+  "oldoverlays/mainoverlay_22.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "comedy"
+    ],
+    "character": "Bald cartoon guy in a blue shirt giving a thumbs-up with a friendly smile",
+    "background": "A cozy suburban family home with a lawn, trees, and warm golden sunset lighting"
+  },
+  "oldoverlays/mainoverlay_23.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral"
+    ],
+    "character": "Bald cartoon guy in a blue shirt giving a double thumbs-up with a cheerful smile",
+    "background": "A bright, sunny city street with office buildings, a domed capitol, mountains, and blue sky"
+  },
+  "oldoverlays/mainoverlay_24.png": {
+    "primaryMood": "comedy",
+    "moods": [
+      "comedy",
+      "kids"
+    ],
+    "character": "Anime-style pink-haired woman in a yellow top winking, with a speech bubble",
+    "background": "A colorful amusement park with a roller coaster, Ferris wheel, and circus tent under a pink sky"
+  },
+  "oldoverlays/mainoverlay_25.png": {
+    "primaryMood": "fantasy",
+    "moods": [
+      "fantasy",
+      "drama"
+    ],
+    "character": "Anime-style pink-haired woman in a red dress with a tiara, winking and smiling softly",
+    "background": "A medieval European cobblestone street with timber-framed houses, lanterns, and a sunset sky"
+  },
+  "oldoverlays/mainoverlay_26.png": {
+    "primaryMood": "scifi",
+    "moods": [
+      "scifi",
+      "thriller"
+    ],
+    "character": "Pink-haired anime woman winking and smiling, wearing a black tank top with an arm tattoo",
+    "background": "Neon-lit cyberpunk cityscape at night with glowing Japanese 'ramen' signs and blue/pink lighting"
+  },
+  "oldoverlays/mainoverlay_27.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "comedy"
+    ],
+    "character": "Pink-haired anime woman with a ponytail, winking and smiling in a navy sports bra with an arm tattoo",
+    "background": "Bright sunny tropical beach with turquoise ocean waves and a blue sky with fluffy clouds"
+  },
+  "oldoverlays/mainoverlay_28.png": {
+    "primaryMood": "kids",
+    "moods": [
+      "kids",
+      "fantasy",
+      "comedy"
+    ],
+    "character": "Pink-haired anime woman winking and smiling in a yellow dress with a headband and arm tattoo",
+    "background": "Whimsical candyland with a giant rainbow lollipop, gingerbread/cupcake houses, and colorful candy scattered on grass under a bright blue sky"
+  },
+  "oldoverlays/mainoverlay_29.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "drama"
+    ],
+    "character": "Pink-haired anime woman winking and smiling in a blue t-shirt and jeans with a headband and arm tattoo",
+    "background": "Peaceful rural countryside with a dirt path, green meadows, trees, distant blue mountains, and a partly cloudy sky"
+  },
+  "oldoverlays/mainoverlay_3.png": {
+    "primaryMood": "neutral",
+    "moods": [
+      "neutral",
+      "comedy"
+    ],
+    "character": "Bald cartoon man smiling and giving a double thumbs-up in a blue shirt",
+    "background": "Bright Chicago cityscape with the iconic Chicago theater marquee, Marina City towers, Wrigley Building clock tower, and skyline under a blue sky"
+  },
+  "oldoverlays/mainoverlay_30.png": {
+    "primaryMood": "comedy",
+    "moods": [
+      "comedy",
+      "neutral"
+    ],
+    "character": "Winking pink-haired anime woman in a dark sleeveless top with an arm tattoo, smiling playfully",
+    "background": "Bold geometric burst of bright orange, red, teal, and green color blocks"
+  },
+  "oldoverlays/mainoverlay_31.png": {
+    "primaryMood": "kids",
+    "moods": [
+      "kids",
+      "neutral"
+    ],
+    "character": "Winking pink-haired anime woman with an arm tattoo, smiling cheerfully",
+    "background": "Bright sunny green meadow with rolling hills, trees, and blue sky with fluffy clouds"
+  },
+  "oldoverlays/mainoverlay_32.png": {
+    "primaryMood": "scifi",
+    "moods": [
+      "scifi",
+      "fantasy"
+    ],
+    "character": "Winking pink-haired anime woman in a teal tank top with an arm tattoo, smiling softly",
+    "background": "Deep starry night sky with the Milky Way galaxy and scattered stars"
+  },
+  "oldoverlays/mainoverlay_33.png": {
+    "primaryMood": "scifi",
+    "moods": [
+      "scifi",
+      "fantasy"
+    ],
+    "character": "Winking pink-haired anime woman in a black tank top with an arm tattoo, smiling",
+    "background": "Purple-blue cosmic starfield with a bright shining star and Milky Way band"
+  },
+  "oldoverlays/mainoverlay_34.png": {
+    "primaryMood": "fantasy",
+    "moods": [
+      "fantasy",
+      "kids"
+    ],
+    "character": "Pink-haired fairy with translucent wings and a tiara, winking and smiling",
+    "background": "Enchanted green forest with fireflies, a stone bridge, a stream, and wildflowers"
+  },
+  "oldoverlays/mainoverlay_35.png": {
+    "primaryMood": "drama",
+    "moods": [
+      "drama",
+      "fantasy"
+    ],
+    "character": "Anime woman with pink hair, tiara, winking, in a red top; a silhouetted couple stands behind her",
+    "background": "Romantic city park at dusk with a heart-shaped lamppost and a deep red/orange sunset sky"
+  },
+  "oldoverlays/mainoverlay_36.png": {
+    "primaryMood": "comedy",
+    "moods": [
+      "comedy",
+      "kids"
+    ],
+    "character": "Cheerful anime woman with pink hair winking and smiling, in a white dress, with a speech bubble showing '...'",
+    "background": "Bright sunny green countryside meadow with rolling hills and a blue sky full of fluffy clouds"
+  },
+  "oldoverlays/mainoverlay_4.png": {
+    "primaryMood": "scifi",
+    "moods": [
+      "scifi",
+      "drama"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Post-apocalyptic wasteland of rubble and broken power lines under a fiery orange/red sky"
+  },
+  "oldoverlays/mainoverlay_5.png": {
+    "primaryMood": "drama",
+    "moods": [
+      "drama",
+      "thriller"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Gloomy sepia-toned post-apocalyptic ruins with rubble, a wrecked car, and an overcast brown sky"
+  },
+  "oldoverlays/mainoverlay_6.png": {
+    "primaryMood": "scifi",
+    "moods": [
+      "scifi",
+      "fantasy"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Vivid purple and orange post-apocalyptic wasteland of rubble and broken poles under a colorful sunset sky"
+  },
+  "oldoverlays/mainoverlay_7.png": {
+    "primaryMood": "drama",
+    "moods": [
+      "drama",
+      "action",
+      "thriller"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Post-apocalyptic ruined city at sunset with a crumbling water tower, rubble, and an abandoned car under a dramatic orange-and-teal sky"
+  },
+  "oldoverlays/mainoverlay_8.png": {
+    "primaryMood": "drama",
+    "moods": [
+      "drama",
+      "neutral"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Barren orange desert wasteland with mesas, cacti, a broken sign, ruined structure, and an abandoned car under a warm hazy sky"
+  },
+  "oldoverlays/mainoverlay_9.png": {
+    "primaryMood": "drama",
+    "moods": [
+      "drama",
+      "neutral"
+    ],
+    "character": "Bald cartoon thumbs-up guy in a blue shirt, smiling",
+    "background": "Orange desert wasteland with a derelict building, leaning power-line poles, rubble, and a rusted car under a bright teal sky"
+  },
+  "account_3/mainoverlay_1.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "thriller"
+    ],
+    "character": "Dark hooded cloaked figure with glowing white eyes, face in shadow",
+    "background": "Very dark near-black radial sunburst, eerie and ominous"
+  },
+  "account_3/mainoverlay_2.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "thriller",
+      "fantasy"
+    ],
+    "character": "Dark hooded cloaked figure with glowing white eyes, face in shadow",
+    "background": "Dark muted green starburst with scattered dots, gloomy and mysterious"
+  },
+  "account_3/mainoverlay_3.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "thriller"
+    ],
+    "character": "Dark cloaked figure with a hood and glowing white eyes, face hidden in shadow",
+    "background": "Teal sunburst rays radiating from center with subtle dust speckles"
+  },
+  "account_3/mainoverlay_4.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "thriller"
+    ],
+    "character": "Brown-cloaked hooded figure with glowing white eyes, face obscured in darkness",
+    "background": "Deep red explosive starburst with halftone dot texture, ominous blood-red tone"
+  },
+  "account_3/mainoverlay_5.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "thriller"
+    ],
+    "character": "Dark green hooded cloaked figure with glowing white eyes, shadowed face",
+    "background": "Murky dark teal-green jagged burst rays, gloomy and eerie"
+  },
+  "account_3/mainoverlay_6.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "thriller"
+    ],
+    "character": "Dark hooded figure in a jacket with glowing white eyes, face hidden in shadow",
+    "background": "Dark teal with wispy smoky tendrils radiating from a burst, misty and eerie"
+  },
+  "account_3/mainoverlay_7.png": {
+    "primaryMood": "horror",
+    "moods": [
+      "horror",
+      "thriller",
+      "fantasy"
+    ],
+    "character": "Dark hooded figure in a jacket with glowing white eyes, shadowed face",
+    "background": "Dark teal with swirling spiral/curl patterns, mysterious and dreamlike"
+  }
+}

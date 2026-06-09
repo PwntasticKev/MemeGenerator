@@ -1,18 +1,13 @@
 import fs from 'fs'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import pkg from 'openai'
 import mcpClient from '../mcp-client.js'
+import { generateMemeContent } from './contentGenerator.js'
 
 // Import template generation function
 import { generateTemplateWithVideo } from '../template.js'
 
-const { OpenAIApi, Configuration } = pkg
 const execAsync = promisify(exec)
-
-// Configuration for OpenAI API - will be set up after dotenv is loaded
-let configuration
-let openai
 
 // Constants
 const MEME_PROFILE_PIC = './assets/mainoverlay_1.png'
@@ -24,144 +19,22 @@ function createPlaceholderImageUrl (text) {
   return `https://via.placeholder.com/600x400/667eea/ffffff?text=${encodedText}`
 }
 
-// Enhanced GPT function with better prompt
+// Meme COPY generation now delegates to the unified contentGenerator
+// (modern OpenAI SDK, single rage-bait prompt). This wrapper preserves the
+// legacy return shape (adds image_urls/avatar_urls) and the no-questions guard.
 export async function callCustomGpt (topic, accountNumber = 1) {
-  try {
-    console.log(`🤖 Asking ChatGPT for meme content about: "${topic}"`)
+  console.log(`🤖 Asking ChatGPT for meme content about: "${topic}"`)
 
-    // Create a comprehensive prompt for better search terms and character generation
-    const prompt = `Create a WITTY and CONTROVERSIAL viral meme about "${topic}" that will spark heated discussions and get people to share their perspectives. 
+  const content = await generateMemeContent(topic, { accountNumber })
 
-Requirements:
-1. Generate a WITTY, CONTROVERSIAL fact or observation about ${topic} (max 100 characters) - something that's clever, surprising, and will make people debate
-2. Create a WITTY COMMENT or RAGE BAIT statement (max 80 characters) - NO EMOJIS, NO QUESTIONS, NO QUESTION MARKS - make a bold statement that will trigger reactions
-3. Provide 3 specific image search terms that will find relevant, high-quality movie/show images
-4. Create a creative username and handle for the meme creator (NOT related to the topic)
-5. Generate an ENGAGING YouTube title and description that will spark discussion
-
-Format your response as JSON with these exact fields:
-{
-  "fact": "Your witty, controversial fact/observation here",
-  "reply": "Your engaging reply here - NO EMOJIS", 
-  "youtube_title": "Engaging title that will spark discussion",
-  "youtube_description": "Thought-provoking description with hashtags that will encourage debate",
-  "image_search_terms": ["specific search term 1", "specific search term 2", "specific search term 3"],
-  "avatar_search_terms": ["character avatar search 1", "character avatar search 2"],
-  "image_urls": [],
-  "avatar_urls": [],
-  "handle": "@creativeusername",
-  "name": "Creative Name",
-  "tags": ["discussion", "debate", "insight"]
-}
-
-CONTENT REQUIREMENTS:
-- The fact should be WITTY, CLEVER, and CONTROVERSIAL - make bold statements that people will want to debate
-- The reply should be a WITTY COMMENT or RAGE BAIT - make bold statements that trigger reactions, NOT questions
-- Focus on: hot takes, unpopular opinions, clever observations, controversial interpretations, surprising connections
-- Use phrases like: "is actually", "was really", "the truth about", "nobody talks about", "the real reason", "secretly", "actually just", "is overrated", "is underrated", "is just", "was never", "has always been"
-- Make people want to argue and share their own hot takes
-- Examples: "X is actually just Y", "The truth about Z nobody talks about", "A was really just B all along", "C secretly represents D", "The real reason E happened", "F is overrated", "G is underrated", "H was never that good", "I has always been problematic"
-- ALWAYS make BOLD STATEMENTS - never ask questions in the reply
-- NEVER use question marks or phrases like "What do you think?", "Agree or disagree?", "Do you think...?", "Change my mind", "Prove me wrong"
-- Reply examples: "This is peak cinema", "Facts don't care about feelings", "The truth hurts", "This aged poorly", "Iconic behavior", "This is why we can't have nice things", "Hard pill to swallow", "The audacity is unmatched", "This is why we can't have nice things", "The truth nobody wants to hear", "This is the reality check we all need", "The facts are undeniable", "This is the cold hard truth"
-
-CRITICAL IMAGE SEARCH REQUIREMENTS:
-- ALWAYS include "HD" or "high quality" in ALL search terms
-- Focus on finding high-quality movie/show images, scenes, and promotional materials
-- PRIORITIZE OFFICIAL CONTENT: Include terms like "official poster", "promotional image", "movie poster", "official still", "character portrait"
-- BE VERY SPECIFIC: Use exact character names, movie titles, and specific scenes
-- Examples: "Iron Man official poster HD", "Black Panther movie poster high quality", "Spider-Man official still HD", "Batman character portrait HD", "Captain America promotional image high quality"
-- Avoid generic terms like "image" or "picture" - be specific about movie/show content
-- Include the movie/show name in search terms for better relevance
-- Focus on images that will work well in a square/portrait format for social media
-- Use specific character names when possible (e.g., "Tony Stark" instead of just "Iron Man")
-- Include action words like "portrait", "close-up", "headshot", "character study"
-- PRIORITIZE OFFICIAL MOVIE CONTENT over fan art or generic images
-
-USERNAME REQUIREMENTS:
-- Create creative, memorable usernames that are NOT related to the topic
-- Use handles like: @meme_lord, @cinema_sage, @film_whisperer, @movie_mind, @cinema_insights, @film_philosopher, @movie_mastermind, @cinema_critic, @film_theorist, @movie_analyst
-- Names should be creative but not too realistic - avoid common names like "John" or "Sarah"
-- Examples: MemeLord, CinemaSage, FilmWhisperer, MovieMind, CinemaInsights, FilmPhilosopher, MovieMastermind, CinemaCritic, FilmTheorist, MovieAnalyst
-
-YOUTUBE REQUIREMENTS:
-- Titles should be engaging and thought-provoking, not clickbait
-- Focus on discussion and analysis, not controversy for controversy's sake
-- Use phrases like: "Hidden Meaning", "Deeper Analysis", "What You Missed", "Character Study", "Symbolism Explained", "Plot Analysis"
-- Descriptions should encourage thoughtful discussion and debate`
-
-    const completion = await openai.createChatCompletion({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a WITTY and CONTROVERSIAL viral meme creator who specializes in CLEVER content that sparks heated discussions. Your goal is to create content that makes people debate, argue, and share their hot takes. Focus on bold statements, unpopular opinions, clever observations, and controversial interpretations. Always respond with valid JSON.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.9,
-      max_tokens: 500
-    })
-
-    const responseText = completion.data.choices[0].message.content.trim()
-    console.log('📝 Raw GPT response:', responseText)
-
-    let gptResponse
-    try {
-      gptResponse = JSON.parse(responseText)
-    } catch (parseError) {
-      console.log('[DEBUG] Failed to parse JSON, trying to extract...')
-      // Try to extract JSON from the response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        gptResponse = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('Could not parse GPT response as JSON')
-      }
-    }
-
-    // Ensure all required fields exist
-    const {
-      fact = `${topic} has a deeper meaning you probably missed`,
-      reply = 'This is peak cinema right here',
-      youtube_title = `${topic} Hidden Meaning Revealed`,
-      youtube_description = `The real meaning behind ${topic} will surprise you! #discussion #insight #analysis`,
-      image_search_terms = [`${topic} HD`, `${topic} high quality`, `${topic} official still HD`],
-      avatar_search_terms = [`${topic} character avatar`, `${topic} profile picture`],
-      image_urls = [],
-      avatar_urls = [],
-      handle = '@meme_lord',
-      name = 'MemeLord',
-      tags = ['discussion', 'insight', 'analysis']
-    } = gptResponse
-
-    // Validate that reply is not a question
-    let validatedReply = reply
-    if (reply.includes('?') || reply.toLowerCase().includes('what') || reply.toLowerCase().includes('how') || reply.toLowerCase().includes('why') || reply.toLowerCase().includes('do you') || reply.toLowerCase().includes('agree or disagree')) {
-      validatedReply = 'This is peak cinema right here'
-      console.log('⚠️  Reply contained a question, using fallback')
-    }
-
-    return {
-      fact,
-      reply: validatedReply,
-      youtube_title,
-      youtube_description,
-      image_search_terms,
-      avatar_search_terms,
-      image_urls,
-      avatar_urls,
-      handle,
-      name,
-      tags
-    }
-  } catch (error) {
-    console.error('❌ Error calling ChatGPT:', error.message)
-    throw error
+  // Legacy guard: replies should never be questions.
+  let validatedReply = content.reply
+  if (/\?|what|how|why|do you|agree or disagree/i.test(content.reply)) {
+    validatedReply = 'This is peak cinema right here'
+    console.log('⚠️  Reply contained a question, using fallback')
   }
+
+  return { ...content, reply: validatedReply, image_urls: [], avatar_urls: [] }
 }
 
 // MCP-based image scraping - much more reliable
@@ -238,12 +111,6 @@ async function main (presetTopic = null) {
     // Load environment variables
     const dotenv = await import('dotenv')
     dotenv.config()
-
-    // Initialize OpenAI configuration after dotenv is loaded
-    configuration = new Configuration({
-      apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key-here'
-    })
-    openai = new OpenAIApi(configuration)
 
     // Get topic from command line or use preset
     const topic = presetTopic || process.argv[2] || 'The Godfather'

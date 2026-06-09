@@ -1,5 +1,20 @@
 node_modules
 /node_modules
 */node_modules
+
+# secrets
 .env
 youtube_token.json
+
+# OS
+.DS_Store
+**/.DS_Store
+
+# generated output / runtime state (do not bloat the repo)
+output/
+test_output/
+logs/
+data/
+temp_audio_*.mp3
+*.log
+_dbg.mjs

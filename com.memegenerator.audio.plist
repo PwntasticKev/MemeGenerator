@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.memegenerator.audio</string>
+
+    <!-- Calls Node directly (see daily plist note). Grant Full Disk Access to
+         the same node binary so it can read/write the project in ~/Documents. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/kevinlee/.nvm/versions/node/v22.12.0/bin/node</string>
+        <string>/Users/kevinlee/Documents/code/MemeGenerator/scripts/fetchAudio.js</string>
+        <string>--count=40</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <!-- Weekly: Sunday (Weekday 0) at 09:00 local. Tops up the CC0 audio library. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/kevinlee/Documents/code/MemeGenerator/logs/audio-fetch.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/kevinlee/Documents/code/MemeGenerator/logs/audio-fetch.err.log</string>
+</dict>
+</plist>

@@ -64,9 +64,15 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
   const cnv = canvas.createCanvas(WIDTH, HEIGHT)
   const ctx = cnv.getContext('2d')
 
-  // Draw overlay background
+  // Draw overlay background — cover-fit so mixed-aspect overlays (square vs 2:3)
+  // fill the 9:16 frame WITHOUT distorting the character.
   const overlayImg = await canvas.loadImage(overlayPath)
-  ctx.drawImage(overlayImg, 0, 0, WIDTH, HEIGHT)
+  {
+    const oScale = Math.max(WIDTH / overlayImg.width, HEIGHT / overlayImg.height)
+    const oW = overlayImg.width * oScale
+    const oH = overlayImg.height * oScale
+    ctx.drawImage(overlayImg, (WIDTH - oW) / 2, (HEIGHT - oH) / 2, oW, oH)
+  }
 
   // Calculate content height to make card dynamic
   ctx.font = 'bold 48px Arial'
@@ -144,13 +150,17 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
     ctx.closePath()
     ctx.fill()
 
-    // Add text
-    ctx.fillStyle = 'white'
-    ctx.font = 'bold 24px Arial'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('Image', x + width / 2, y + height / 2 - 15)
-    ctx.fillText('Not Found', x + width / 2, y + height / 2 + 15)
+    // Add text with better error handling
+    try {
+      ctx.fillStyle = 'white'
+      ctx.font = 'bold 24px Arial'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('Image', x + width / 2, y + height / 2 - 15)
+      ctx.fillText('Not Found', x + width / 2, y + height / 2 + 15)
+    } catch (textError) {
+      console.log('Text rendering failed in fallback image:', textError.message)
+    }
     ctx.restore()
   }
 
@@ -168,16 +178,38 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
         })
         imgBuf = resp.data
 
-        // Convert WebP to PNG if needed for better canvas compatibility
+        // Enhanced image conversion for better canvas compatibility
         try {
           const sharp = await import('sharp')
-          imgBuf = await sharp.default(imgBuf).png().toBuffer()
+          // Convert to PNG and ensure proper format
+          imgBuf = await sharp.default(imgBuf)
+            .png()
+            .resize(400, 300, { fit: 'cover', position: 'center' })
+            .toBuffer()
+          console.log('✅ Image 1 converted to PNG successfully')
         } catch (sharpError) {
-          console.log('Sharp conversion failed, using original image:', sharpError.message)
+          console.log('Sharp conversion failed for image 1, trying alternative approach:', sharpError.message)
+          // Try alternative conversion
+          try {
+            const sharp = await import('sharp')
+            imgBuf = await sharp.default(imgBuf)
+              .jpeg()
+              .resize(400, 300, { fit: 'cover', position: 'center' })
+              .toBuffer()
+            console.log('✅ Image 1 converted to JPEG successfully')
+          } catch (jpegError) {
+            console.log('All conversions failed for image 1, using original:', jpegError.message)
+          }
         }
       } else {
         imgBuf = fs.readFileSync(image1)
       }
+
+      // Validate image buffer before loading
+      if (!imgBuf || imgBuf.length === 0) {
+        throw new Error('Empty image buffer')
+      }
+
       const img = await canvas.loadImage(imgBuf)
 
       // Draw left image with rounded corners (ONLY top-left and bottom-left corners rounded)
@@ -217,16 +249,38 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
         })
         imgBuf = resp.data
 
-        // Convert WebP to PNG if needed for better canvas compatibility
+        // Enhanced image conversion for better canvas compatibility
         try {
           const sharp = await import('sharp')
-          imgBuf = await sharp.default(imgBuf).png().toBuffer()
+          // Convert to PNG and ensure proper format
+          imgBuf = await sharp.default(imgBuf)
+            .png()
+            .resize(400, 300, { fit: 'cover', position: 'center' })
+            .toBuffer()
+          console.log('✅ Image 2 converted to PNG successfully')
         } catch (sharpError) {
-          console.log('Sharp conversion failed, using original image:', sharpError.message)
+          console.log('Sharp conversion failed for image 2, trying alternative approach:', sharpError.message)
+          // Try alternative conversion
+          try {
+            const sharp = await import('sharp')
+            imgBuf = await sharp.default(imgBuf)
+              .jpeg()
+              .resize(400, 300, { fit: 'cover', position: 'center' })
+              .toBuffer()
+            console.log('✅ Image 2 converted to JPEG successfully')
+          } catch (jpegError) {
+            console.log('All conversions failed for image 2, using original:', jpegError.message)
+          }
         }
       } else {
         imgBuf = fs.readFileSync(image2)
       }
+
+      // Validate image buffer before loading
+      if (!imgBuf || imgBuf.length === 0) {
+        throw new Error('Empty image buffer')
+      }
+
       const img = await canvas.loadImage(imgBuf)
 
       // Draw right image with rounded corners (ONLY top-right and bottom-right corners rounded)
@@ -313,14 +367,14 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
 export async function generateTemplateWithVideo ({ videoOverlayPath, image1, image2, fact, reply, outputPath, avatarPath = './assets/mainoverlay_1.png', handle = '@memecreator', name = 'Meme Creator' }) {
   const WIDTH = 1080
   const HEIGHT = 1920
-  const CARD_WIDTH = 900 // Further reduced for more right-side breathing room
+  const CARD_WIDTH = 1000 // Increased width to be closer to edges
   const CARD_X = (WIDTH - CARD_WIDTH) / 2
   const CARD_Y = 120
 
   // Layout positions - FIXED: Proper dynamic positioning with wider images and better padding
   const FACT_Y = CARD_Y + 60
-  const IMAGE_WIDTH = 400 // Further reduced to fit better with new padding
-  const IMAGE_HEIGHT = 380 // Increased height for taller images
+  const IMAGE_WIDTH = 450 // Increased width for bigger images
+  const IMAGE_HEIGHT = 395 // Increased height by 15 more pixels (380 + 15)
   const GAP_BETWEEN_IMAGES = 20 // Small gap between images
   const LEFT_IMAGE_X = CARD_X + 40 // Reduced left padding by 20px total
   const RIGHT_IMAGE_X = LEFT_IMAGE_X + IMAGE_WIDTH + GAP_BETWEEN_IMAGES
@@ -370,6 +424,30 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
   for (const line of factLines) {
     ctx.fillText(line, CARD_X + 60, factY)
     factY += 56
+  }
+
+  // Helper function to draw image with proper aspect ratio (like CSS object-fit: contain)
+  const drawImageWithAspectRatio = (img, x, y, width, height) => {
+    const imgAspect = img.width / img.height
+    const targetAspect = width / height
+
+    let drawWidth, drawHeight, drawX, drawY
+
+    if (imgAspect > targetAspect) {
+      // Image is wider than target - fit to height, center horizontally
+      drawHeight = height
+      drawWidth = height * imgAspect
+      drawX = x - (drawWidth - width) / 2
+      drawY = y
+    } else {
+      // Image is taller than target - fit to width, center vertically
+      drawWidth = width
+      drawHeight = width / imgAspect
+      drawX = x
+      drawY = y - (drawHeight - height) / 2
+    }
+
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
   }
 
   // Helper function to create fallback image
@@ -457,7 +535,10 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
       ctx.quadraticCurveTo(LEFT_IMAGE_X, IMAGE_Y, LEFT_IMAGE_X + 20, IMAGE_Y) // Top-left curve
       ctx.closePath()
       ctx.clip()
-      ctx.drawImage(img, LEFT_IMAGE_X, IMAGE_Y, IMAGE_WIDTH, IMAGE_HEIGHT)
+
+      // Use aspect ratio preservation instead of stretching
+      drawImageWithAspectRatio(img, LEFT_IMAGE_X, IMAGE_Y, IMAGE_WIDTH, IMAGE_HEIGHT)
+
       ctx.restore()
       console.log('✅ Left image loaded successfully')
     } catch (e) {
@@ -506,7 +587,10 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
       ctx.lineTo(RIGHT_IMAGE_X, IMAGE_Y) // Straight line up left edge (no top-left radius)
       ctx.closePath()
       ctx.clip()
-      ctx.drawImage(img, RIGHT_IMAGE_X, IMAGE_Y, IMAGE_WIDTH, IMAGE_HEIGHT)
+
+      // Use aspect ratio preservation instead of stretching
+      drawImageWithAspectRatio(img, RIGHT_IMAGE_X, IMAGE_Y, IMAGE_WIDTH, IMAGE_HEIGHT)
+
       ctx.restore()
       console.log('✅ Right image loaded successfully')
     } catch (e) {

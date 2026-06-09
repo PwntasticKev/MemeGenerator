@@ -1,105 +1,141 @@
-import fs from 'fs';
-import path from 'path';
-import { google } from 'googleapis';
-import 'dotenv/config';
-import readline from "readline";
+import fs from 'fs'
+import path from 'path'
+import { google } from 'googleapis'
+import dotenv from 'dotenv'
 
-const SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
-const TOKEN_PATH = path.join(__dirname, '../youtube_token.json');
+dotenv.config()
 
-function getOAuth2Client(accountConfig) {
-  const account = accountConfig?.account || 1;
-  
-  // Use account-specific environment variables
-  const clientId = process.env[`YOUTUBE_CLIENT_ID_${account}`] || process.env.YOUTUBE_CLIENT_ID || accountConfig?.clientId;
-  const clientSecret = process.env[`YOUTUBE_CLIENT_SECRET_${account}`] || process.env.YOUTUBE_CLIENT_SECRET || accountConfig?.clientSecret;
-  
-  if (!clientId || !clientSecret) {
-    throw new Error(`[YouTube] Missing clientId or clientSecret for account ${account}. Please set YOUTUBE_CLIENT_ID_${account} and YOUTUBE_CLIENT_SECRET_${account} environment variables.`);
-  }
-  
-  const redirect_uris = ['urn:ietf:wg:oauth:2.0:oob', 'http://localhost'];
-  return new google.auth.OAuth2(clientId, clientSecret, redirect_uris[0]);
-}
+// YouTube API setup
+const youtube = google.youtube({
+  version: 'v3',
+  auth: process.env.YOUTUBE_API_KEY
+})
 
-async function authenticate(accountConfig) {
-  const oAuth2Client = getOAuth2Client(accountConfig);
-  const account = accountConfig?.account || 1;
-  
-  // Try to use account-specific token file first
-  const accountTokenPath = path.join(__dirname, `../youtube_token_${account}.json`);
-  if (fs.existsSync(accountTokenPath)) {
-    try {
-      const token = JSON.parse(fs.readFileSync(accountTokenPath, 'utf8'));
-      oAuth2Client.setCredentials(token);
-      console.log(`[YouTube] Using existing token from file for account ${account}`);
-      return oAuth2Client;
-    } catch (error) {
-      console.log(`[YouTube] Error reading token file for account ${account}, will use refresh token`);
+const oauth2Client = new google.auth.OAuth2(
+  process.env.YOUTUBE_CLIENT_ID,
+  process.env.YOUTUBE_CLIENT_SECRET,
+  process.env.YOUTUBE_REDIRECT_URI
+)
+
+export async function uploadToYouTube (videoPath, title, description, tags = [], scheduledTime = null) {
+  try {
+    console.log('📤 Starting YouTube upload...')
+    console.log(`📹 Video: ${videoPath}`)
+    console.log(`📝 Title: ${title}`)
+    console.log(`📄 Description: ${description}`)
+
+    if (scheduledTime) {
+      console.log(`⏰ Scheduled for: ${scheduledTime}`)
+    }
+
+    // Set credentials
+    oauth2Client.setCredentials({
+      refresh_token: process.env.YOUTUBE_REFRESH_TOKEN
+    })
+
+    // Prepare upload parameters
+    const requestBody = {
+      snippet: {
+        title,
+        description,
+        tags,
+        categoryId: '22', // People & Blogs
+        defaultLanguage: 'en',
+        defaultAudioLanguage: 'en'
+      },
+      status: {
+        // Default private for safety; set YOUTUBE_PRIVACY=public to auto-publish now.
+        privacyStatus: process.env.YOUTUBE_PRIVACY || 'private',
+        selfDeclaredMadeForKids: false
+      }
+    }
+
+    // Scheduled publishing: YouTube REQUIRES privacyStatus=private alongside
+    // publishAt, then auto-publishes (makes public) at that time.
+    if (scheduledTime) {
+      requestBody.status.privacyStatus = 'private'
+      requestBody.status.publishAt = new Date(scheduledTime).toISOString()
+    }
+
+    // Upload the video
+    const response = await youtube.videos.insert({
+      auth: oauth2Client,
+      part: ['snippet', 'status'],
+      requestBody,
+      media: {
+        body: fs.createReadStream(videoPath)
+      }
+    })
+
+    const videoId = response.data.id
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
+
+    console.log('✅ YouTube upload successful!')
+    console.log(`🔗 Video URL: ${videoUrl}`)
+
+    return {
+      success: true,
+      videoId,
+      videoUrl,
+      scheduledTime
+    }
+  } catch (error) {
+    console.error('❌ YouTube upload failed:', error.message)
+    return {
+      success: false,
+      error: error.message
     }
   }
-  
-  // Fall back to default token file
-  if (fs.existsSync(TOKEN_PATH)) {
-    try {
-      const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
-      oAuth2Client.setCredentials(token);
-      console.log('[YouTube] Using existing token from default file');
-      return oAuth2Client;
-    } catch (error) {
-      console.log('[YouTube] Error reading default token file, will use refresh token');
-    }
-  }
-  
-  // Fall back to refresh token from environment or account config
-  const refreshToken = process.env[`YOUTUBE_REFRESH_TOKEN_${account}`] || process.env.YOUTUBE_REFRESH_TOKEN || accountConfig?.refreshToken;
-  if (!refreshToken) {
-    throw new Error(`[YouTube] Missing refreshToken for account ${account}. Please set YOUTUBE_REFRESH_TOKEN_${account} environment variable or provide account config.`);
-  }
-  
-  oAuth2Client.setCredentials({ refresh_token: refreshToken });
-  return oAuth2Client;
 }
 
-async function uploadAndScheduleYouTubeShort({ videoPath, title, description, scheduledPublishDate, account = 1 }) {
-  if (!fs.existsSync(videoPath)) throw new Error('Video file does not exist: ' + videoPath);
-  console.log(`[YouTube] Using account ${account}`);
-  const auth = await authenticate({ account });
-  const youtube = google.youtube({ version: 'v3', auth });
-  const resource = {
-    snippet: {
-      title,
-      description,
-      tags: ['shorts', 'viral', 'memes'],
-      categoryId: '22', // People & Blogs
-    },
-    status: {
-      privacyStatus: 'private',
-      publishAt: scheduledPublishDate ? new Date(scheduledPublishDate).toISOString() : undefined,
-      selfDeclaredMadeForKids: false,
-    },
-  };
-  if (!title.toLowerCase().includes('shorts') && !description.toLowerCase().includes('shorts')) {
-    resource.snippet.description += '\n#shorts';
+export async function scheduleVideo (videoPath, title, description, tags = [], scheduledTime) {
+  console.log('📅 Scheduling video for YouTube...')
+  return await uploadToYouTube(videoPath, title, description, tags, scheduledTime)
+}
+
+// Helper function to create scheduled time (e.g., 24 hours from now)
+export function createScheduledTime (hoursFromNow = 24) {
+  const scheduledTime = new Date()
+  scheduledTime.setHours(scheduledTime.getHours() + hoursFromNow)
+  return scheduledTime.toISOString()
+}
+
+// Test function
+export async function testYouTubeUpload () {
+  console.log('🧪 Testing YouTube upload functionality...')
+
+  // Check if required environment variables are set
+  const requiredVars = [
+    'YOUTUBE_API_KEY',
+    'YOUTUBE_CLIENT_ID',
+    'YOUTUBE_CLIENT_SECRET',
+    'YOUTUBE_REDIRECT_URI',
+    'YOUTUBE_REFRESH_TOKEN'
+  ]
+
+  const missingVars = requiredVars.filter(varName => !process.env[varName])
+
+  if (missingVars.length > 0) {
+    console.log('❌ Missing YouTube API environment variables:')
+    missingVars.forEach(varName => console.log(`   - ${varName}`))
+    console.log('\n📝 Please add these to your .env file')
+    return false
   }
-  console.log('[YouTube] Uploading video:', videoPath);
-  const res = await youtube.videos.insert({
-    part: 'snippet,status',
-    notifySubscribers: false,
-    requestBody: resource,
-    media: {
-      body: fs.createReadStream(videoPath),
-    },
-  });
-  const videoId = res.data.id;
-  console.log(`[YouTube] Video uploaded! Video ID: ${videoId}`);
-  if (scheduledPublishDate) {
-    console.log(`[YouTube] Scheduled to publish at: ${scheduledPublishDate}`);
+
+  console.log('✅ All YouTube API environment variables are set')
+  return true
+}
+
+// Main function for testing
+async function main () {
+  const testResult = await testYouTubeUpload()
+  if (testResult) {
+    console.log('🎉 YouTube uploader is ready to use!')
   } else {
-    console.log('[YouTube] Video is private. Set to public manually or provide a scheduledPublishDate.');
+    console.log('⚠️  Please configure YouTube API credentials first')
   }
-  return videoId;
 }
 
-export { uploadAndScheduleYouTubeShort }; 
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main()
+}

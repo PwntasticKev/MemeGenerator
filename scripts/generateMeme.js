@@ -4,9 +4,8 @@ import axios from 'axios'
 import sharp from 'sharp'
 import puppeteer from 'puppeteer'
 import readline from 'readline'
-import pkg from 'openai'
 import { exec } from 'child_process'
-import { uploadAndScheduleYouTubeShort } from './youtubeUploader.js'
+import { uploadToYouTube, scheduleVideo, createScheduledTime } from './youtubeUploader.js'
 import * as cheerio from 'cheerio'
 import https from 'https'
 import http from 'http'
@@ -14,14 +13,11 @@ import canvas from 'canvas'
 import { generateTemplate } from '../template.js'
 import { createRequire } from 'module'
 import { JSDOM } from 'jsdom'
-const { OpenAIApi, Configuration } = pkg
+import { addRandomAudioToVideo, createVideoWithOverlay } from './audioManager.js'
 const require = createRequire(import.meta.url)
 
-// Configuration for OpenAI API
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key-here'
-})
-const openai = new OpenAIApi(configuration)
+// Meme COPY generation is handled by contentGenerator.js (modern OpenAI SDK),
+// reached via generateMemeWithMCP.callCustomGpt. No OpenAI client is created here.
 
 // Parse command line arguments
 const args = process.argv.slice(2)
@@ -32,6 +28,7 @@ const handle = args.find(arg => arg.startsWith('--handle='))?.split('=')[1] || '
 const customImageUrl = args.find(arg => arg.startsWith('--image-url='))?.split('=')[1] || null
 const skipReview = args.includes('--skip-review') || args.includes('--no-review')
 const allAccountsFlag = args.includes('--all-accounts') || true // Default to generating for all accounts
+const scheduleTime = args.find(arg => arg.startsWith('--schedule='))?.split('=')[1] || null
 
 // Configurable settings
 const VIDEO_DURATION = 6 // seconds
@@ -105,38 +102,23 @@ IMPORTANT:
 - Name should be a creative, memorable name that fits the handle
 - Make content THOUGHT-PROVOKING and DISCUSSION-WORTHY to maximize engagement`
 
-    const completion = await openai.createChatCompletion({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a THOUGHT-PROVOKING viral meme creator who specializes in INSIGHTFUL content that sparks meaningful discussions. Your goal is to create content that reveals deeper meaning, hidden details, and alternative interpretations that make people think and share their perspectives. Focus on symbolism, character development, plot implications, and what could have been. Always respond with valid JSON.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.9,
-      max_tokens: 500
-    })
+    // REMOVED: API call to prevent duplicate ChatGPT calls
+    // This function is only used for image scraping, not content generation
+    // Content generation is handled by generateMemeWithMCP.js
 
-    const responseText = completion.data.choices[0].message.content.trim()
-    // console.log('[DEBUG] Raw GPT response:', responseText) // Removed debug call to prevent duplicate ChatGPT calls
-
-    // Try to parse JSON response
-    let gptResponse
-    try {
-      gptResponse = JSON.parse(responseText)
-    } catch (parseError) {
-      console.log('[DEBUG] Failed to parse JSON, trying to extract...')
-      // Try to extract JSON from the response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        gptResponse = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('Could not parse GPT response as JSON')
-      }
+    // Return fallback content instead
+    const gptResponse = {
+      fact: `${topic} has a deeper meaning you probably missed`,
+      reply: 'This is peak cinema right here',
+      youtube_title: `${topic} Hidden Meaning Revealed`,
+      youtube_description: `The real meaning behind ${topic} will surprise you! #discussion #insight #analysis`,
+      image_search_terms: [`${topic} HD`, `${topic} high quality`, `${topic} official still HD`],
+      avatar_search_terms: [`${topic} character avatar`, `${topic} profile picture`],
+      image_urls: [],
+      avatar_urls: [],
+      handle: '@meme_lord',
+      name: 'MemeLord',
+      tags: ['discussion', 'insight', 'analysis']
     }
 
     // Ensure all required fields exist
@@ -173,16 +155,39 @@ IMPORTANT:
   }
 }
 
+// Global flag to prevent multiple API calls
+let hasMadeApiCall = false
+
 async function getFactAndWittyReply (topic, accountNumber = 1) {
-  try {
-    const gptResponse = await callCustomGpt(topic, accountNumber)
-    // console.log('[DEBUG] Custom GPT response:', gptResponse) // Removed debug call to prevent duplicate ChatGPT calls
-    return gptResponse
-  } catch (error) {
-    console.error('❌ Error getting meme data from custom GPT:', error.message)
+  // Prevent multiple API calls
+  if (hasMadeApiCall) {
+    console.log('⚠️  API call already made, using cached response')
     return {
       fact: `${topic} has a deeper meaning you probably missed`,
-      reply: 'What do you think it really means?',
+      reply: 'This is peak cinema right here',
+      youtube_title: `${topic} Hidden Meaning Revealed`,
+      youtube_description: `The real meaning behind ${topic} will surprise you! #discussion #insight #analysis`,
+      image_search_terms: [`${topic} HD`, `${topic} high quality`, `${topic} official still HD`],
+      avatar_search_terms: [`${topic} character avatar`],
+      image_urls: [],
+      avatar_urls: [],
+      handle: '@meme_lord',
+      name: 'MemeLord',
+      tags: ['discussion', 'insight', 'analysis']
+    }
+  }
+
+  try {
+    // Import the MCP version to ensure only ONE GPT API call
+    const { callCustomGpt: mcpCallCustomGpt } = await import('./generateMemeWithMCP.js')
+    hasMadeApiCall = true // Set flag before making API call
+    const gptResponse = await mcpCallCustomGpt(topic, accountNumber)
+    return gptResponse
+  } catch (error) {
+    console.error('❌ Error getting meme data from MCP GPT:', error.message)
+    return {
+      fact: `${topic} has a deeper meaning you probably missed`,
+      reply: 'This is peak cinema right here',
       youtube_title: `${topic} Hidden Meaning Revealed`,
       youtube_description: `The real meaning behind ${topic} will surprise you! #discussion #insight #analysis`,
       image_search_terms: [`${topic} HD`, `${topic} high quality`, `${topic} official still HD`],
@@ -1188,18 +1193,23 @@ async function composeFactReplyCard (templatePath, imageUrl1, imageUrl2, fact, r
     .toFile(outputPath)
 }
 
-export async function createVideo (imagePath, videoPath) {
-  return new Promise((resolve, reject) => {
-    exec(`ffmpeg -loop 1 -i ${imagePath} -c:v libx264 -t ${VIDEO_DURATION} -pix_fmt yuv420p -vf "scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}" -y ${videoPath}`, (err) => {
-      if (err) {
-        console.error('FFmpeg error:', err)
-        reject(err)
-      } else {
-        console.log('✅ Video created successfully!')
-        resolve()
-      }
-    })
-  })
+export async function createVideo (imagePath, videoPath, overlayPath = null) {
+  try {
+    console.log('🎬 Creating video with random audio...')
+
+    if (overlayPath && overlayPath.endsWith('.mp4')) {
+      console.log(`🎬 Using video overlay: ${overlayPath}`)
+      await createVideoWithOverlay(imagePath, overlayPath, videoPath, VIDEO_DURATION)
+    } else {
+      console.log('🎬 Using static image with audio...')
+      await addRandomAudioToVideo(imagePath, videoPath, VIDEO_DURATION)
+    }
+
+    console.log('✅ Video with audio created successfully!')
+  } catch (error) {
+    console.error('❌ Error creating video:', error)
+    throw error
+  }
 }
 
 function showUsage () {
@@ -1279,9 +1289,10 @@ async function main (presetTopic = null) {
   if (!fs.existsSync(runFolder)) fs.mkdirSync(runFolder, { recursive: true })
   console.log(`📁 Creating output in: ${runFolder}`)
 
-  // Save the full ChatGPT response as JSON in the output folder
+  // Save GPT response JSON to output folder
   const gptResponsePath = `${runFolder}/gpt_response.json`
   fs.writeFileSync(gptResponsePath, JSON.stringify({ fact, reply, youtube_title, youtube_description, image_search_terms, avatar_search_terms, image_urls, avatar_urls, handle, name, tags }, null, 2))
+  console.log(`💾 Saved GPT response to: ${gptResponsePath}`)
 
   // Always scrape 2 images for template
   const finalImageUrls = [null, null]
@@ -1343,16 +1354,22 @@ async function main (presetTopic = null) {
   const framePath = `${runFolder}/frame.png`
   const videoPath = `${runFolder}/video.mp4`
 
+  // Ensure we use a PNG overlay for template generation
+  const templateOverlayPath = overlayPath.endsWith('.mp4')
+    ? './assets/mainoverlay_1.png'
+    : overlayPath
+
   console.log('🎨 Generating template with images:', finalImageUrls)
+  console.log('🎨 Using overlay for template:', templateOverlayPath)
   try {
     await generateTemplate({
-      overlayPath,
+      overlayPath: templateOverlayPath,
       image1: finalImageUrls[0],
       image2: finalImageUrls[1],
       fact,
       reply,
       outputPath: framePath,
-      avatarPath: overlayPath, // Use overlay as avatar background
+      avatarPath: './assets/mainoverlay_1.png', // Use PNG avatar
       handle: handle || '@memecreator',
       name: name || 'Meme Creator'
     })
@@ -1364,7 +1381,7 @@ async function main (presetTopic = null) {
 
   console.log('🎥 Creating video...')
   try {
-    await createVideo(framePath, videoPath)
+    await createVideo(framePath, videoPath, overlayPath)
     console.log('✅ Video creation completed successfully!')
   } catch (videoError) {
     console.error('❌ Video creation failed:', videoError.message)
@@ -1380,6 +1397,31 @@ async function main (presetTopic = null) {
   console.log('\n📺 YouTube Upload Info:')
   console.log(`   Title: ${youtube_title}`)
   console.log(`   Description: ${youtube_description}`)
+
+  // Handle YouTube scheduling if requested
+  if (scheduleTime) {
+    try {
+      console.log(`\n📅 Scheduling YouTube upload for: ${scheduleTime}`)
+      const result = await scheduleVideo(
+        videoPath,
+        youtube_title,
+        youtube_description,
+        tags || ['shorts', 'viral', 'memes'],
+        scheduleTime
+      )
+
+      if (result.success) {
+        console.log('✅ Video scheduled successfully!')
+        console.log(`🔗 YouTube URL: ${result.videoUrl}`)
+      } else {
+        console.error('❌ Failed to schedule video:', result.error)
+        console.log('💡 Video was created successfully but not uploaded. You can upload manually.')
+      }
+    } catch (uploadError) {
+      console.error('❌ Failed to schedule video:', uploadError.message)
+      console.log('💡 Video was created successfully but not uploaded. You can upload manually.')
+    }
+  }
 }
 
 main()
