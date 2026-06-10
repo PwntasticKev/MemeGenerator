@@ -4,15 +4,16 @@
 // This decouples generation from posting: run it occasionally (e.g. weekly),
 // and YouTube publishes one per day on its own — your Mac need not be on.
 //
-// Videos are scheduled into engagement-friendly daily SLOTS (default 8am, noon,
-// 6pm, 10pm local), each with a few minutes of random jitter so posts aren't
-// robotically on the hour. Overnight is skipped; full days roll to the next day.
+// Videos are scheduled into engagement-friendly daily WINDOWS (default morning
+// 7-9am, midday 11am-1pm, evening 5-7pm, night 9-11pm). A fresh RANDOM time is
+// chosen within each window every day, so the schedule varies day-to-day (more
+// organic, and reveals which times perform best). Overnight is skipped; full
+// days roll to the next day.
 //
 // Usage:
-//   node scripts/scheduleBatch.js                          # 6 videos into good daily slots
+//   node scripts/scheduleBatch.js                          # 6 videos into good daily windows
 //   node scripts/scheduleBatch.js --count=12               # more
-//   node scripts/scheduleBatch.js --slots=08:00,12:00,18:00,22:00  # custom times (local)
-//   node scripts/scheduleBatch.js --jitter=20              # up to 20 min past the slot
+//   node scripts/scheduleBatch.js --windows=07:00-09:00,17:00-19:00  # custom windows (local)
 //   node scripts/scheduleBatch.js --start=2026-06-15       # first publish day
 //   node scripts/scheduleBatch.js --dry-run                # generate + show schedule, no upload
 //
@@ -39,12 +40,17 @@ const argVal = (name, def) => {
   return a ? a.split('=').slice(1).join('=') : def
 }
 const COUNT = Math.max(1, parseInt(argVal('count', '6'), 10))
-// Engagement-friendly daily slots (local HH:MM): morning, lunch, evening, night.
-const SLOTS = argVal('slots', '08:00,12:00,18:00,22:00')
-  .split(',').map((s) => s.trim()).filter(Boolean)
-const START = argVal('start', null) // YYYY-MM-DD local; default = today (future slots only)
-// Add a few minutes of random jitter so posts aren't robotically on the hour.
-const JITTER_MAX = parseInt(argVal('jitter', '14'), 10) // max minutes past the slot
+// Engagement-friendly daily WINDOWS (local HH:MM-HH:MM): morning, midday, evening,
+// night. Each day a fresh random time is picked within each window — so the
+// schedule varies day-to-day (more organic + reveals which times perform best).
+const WINDOWS = argVal('windows', '07:00-09:00,11:00-13:00,17:00-19:00,21:00-23:00')
+  .split(',').map((w) => w.trim()).filter(Boolean)
+  .map((w) => {
+    const [a, b] = w.split('-')
+    const toMin = (hm) => { const [h, m] = hm.split(':').map((n) => parseInt(n, 10)); return h * 60 + m }
+    return { start: toMin(a), end: toMin(b) }
+  })
+const START = argVal('start', null) // YYYY-MM-DD local; default = today (future times only)
 
 // --- logging --------------------------------------------------------------
 
@@ -66,27 +72,27 @@ function youtubeConfigured () {
   )
 }
 
-// Build `count` future publish datetimes by filling each day's good SLOTS in
-// order, rolling to the next day when a day is full. Past slots are skipped.
-function buildPublishTimes (count, slots, startDateStr) {
+// Build `count` future publish datetimes by picking a fresh RANDOM time within
+// each day's good windows, rolling to the next day when a day is full. Past
+// times are skipped. Times vary day-to-day so the footprint isn't robotic.
+function buildPublishTimes (count, windows, startDateStr) {
   const times = []
   const day = startDateStr ? new Date(`${startDateStr}T00:00:00`) : new Date()
   day.setHours(0, 0, 0, 0)
   let guard = 0
   while (times.length < count && guard < 400) {
-    for (const slot of slots) {
+    for (const win of windows) {
       if (times.length >= count) break
-      const [hh, mm] = slot.split(':').map((n) => parseInt(n, 10))
-      // Jitter: 2..JITTER_MAX minutes past the slot, so it's never exactly on the hour.
-      const jitter = JITTER_MAX > 2 ? 2 + Math.floor(Math.random() * (JITTER_MAX - 1)) : 0
+      // Random minute-of-day within [start, end].
+      const mins = win.start + Math.floor(Math.random() * (win.end - win.start + 1))
       const t = new Date(day)
-      t.setHours(hh, mm + jitter, 0, 0)
+      t.setHours(0, mins, 0, 0) // Date normalizes minute overflow into hours
       if (t.getTime() > Date.now()) times.push(t)
     }
     day.setDate(day.getDate() + 1)
     guard++
   }
-  return times
+  return times.sort((a, b) => a - b)
 }
 
 // --- main -----------------------------------------------------------------
@@ -100,8 +106,9 @@ async function main () {
     process.exit(1)
   }
 
-  const publishTimes = buildPublishTimes(COUNT, SLOTS, START)
-  log(`Slots/day: ${SLOTS.join(', ')} local. Scheduling ${publishTimes.length} videos:`)
+  const publishTimes = buildPublishTimes(COUNT, WINDOWS, START)
+  const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  log(`Windows/day: ${WINDOWS.map((w) => `${fmt(w.start)}-${fmt(w.end)}`).join(', ')} local (random time per day). Scheduling ${publishTimes.length} videos:`)
   publishTimes.forEach((t, i) => log(`  ${i + 1}. ${t.toLocaleString()}`))
 
   let avoid = (() => {

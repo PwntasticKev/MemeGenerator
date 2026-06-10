@@ -9,10 +9,14 @@
          folder, so launchd can launch it). Node reads the project via absolute
          paths; grant Full Disk Access to THIS node binary so it can read/write
          the project inside ~/Documents. -->
+    <!-- Runs scheduleBatch: generates 4 videos and schedules them onto YouTube at
+         the day's good slots (8am/noon/6pm/10pm) via publishAt. YouTube publishes
+         them; the Mac only needs to be awake for this one early-morning run. -->
     <key>ProgramArguments</key>
     <array>
         <string>/Users/kevinlee/.nvm/versions/node/v22.12.0/bin/node</string>
-        <string>/Users/kevinlee/Documents/code/MemeGenerator/scripts/dailyRun.js</string>
+        <string>/Users/kevinlee/Documents/code/MemeGenerator/scripts/scheduleBatch.js</string>
+        <string>--count=4</string>
     </array>
 
     <!-- ffmpeg/ffprobe live in homebrew; put them on PATH for the child process. -->
@@ -22,11 +26,12 @@
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     </dict>
 
-    <!-- Fire once a day at 10:00 local time. Adjust Hour/Minute to taste. -->
+    <!-- Fire early (6:00am local) so all of today's slots (8am/noon/6pm/10pm) are
+         still in the future and get filled. Adjust Hour/Minute to taste. -->
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>10</integer>
+        <integer>6</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>

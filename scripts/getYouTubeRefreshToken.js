@@ -10,9 +10,26 @@
 
 import 'dotenv/config'
 import http from 'http'
-import { URL } from 'url'
+import fs from 'fs'
+import path from 'path'
+import { URL, fileURLToPath } from 'url'
 import { google } from 'googleapis'
 import open from 'open'
+
+const ENV_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.env')
+
+// Write/replace YOUTUBE_REFRESH_TOKEN in .env so the secret never leaves the file.
+function saveRefreshToken (token) {
+  let env = ''
+  try { env = fs.readFileSync(ENV_PATH, 'utf8') } catch {}
+  const line = `YOUTUBE_REFRESH_TOKEN=${token}`
+  if (/^YOUTUBE_REFRESH_TOKEN=.*$/m.test(env)) {
+    env = env.replace(/^YOUTUBE_REFRESH_TOKEN=.*$/m, line)
+  } else {
+    env += (env.endsWith('\n') ? '' : '\n') + line + '\n'
+  }
+  fs.writeFileSync(ENV_PATH, env)
+}
 
 const PORT = 4280
 const REDIRECT_URI = `http://localhost:${PORT}/oauth2callback`
@@ -48,8 +65,8 @@ async function main () {
 
       console.log('\n========================================')
       if (tokens.refresh_token) {
-        console.log('✅ Add this line to your .env:\n')
-        console.log(`YOUTUBE_REFRESH_TOKEN=${tokens.refresh_token}`)
+        saveRefreshToken(tokens.refresh_token)
+        console.log('✅ Refresh token saved to .env (YOUTUBE_REFRESH_TOKEN).')
       } else {
         console.log('⚠️  No refresh_token returned. Revoke prior access at')
         console.log('   https://myaccount.google.com/permissions and run this again.')

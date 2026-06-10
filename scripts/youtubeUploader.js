@@ -57,34 +57,39 @@ export async function uploadToYouTube (videoPath, title, description, tags = [],
       requestBody.status.publishAt = new Date(scheduledTime).toISOString()
     }
 
-    // Upload the video
-    const response = await youtube.videos.insert({
-      auth: oauth2Client,
-      part: ['snippet', 'status'],
-      requestBody,
-      media: {
-        body: fs.createReadStream(videoPath)
+    // Upload the video, retrying transient failures (a fresh access token and a
+    // new read stream each attempt — invalid_request/5xx can be momentary).
+    const maxAttempts = 3
+    let lastErr
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await youtube.videos.insert({
+          auth: oauth2Client,
+          part: ['snippet', 'status'],
+          requestBody,
+          media: { body: fs.createReadStream(videoPath) }
+        })
+        const videoId = response.data.id
+        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
+        console.log('✅ YouTube upload successful!')
+        console.log(`🔗 Video URL: ${videoUrl}`)
+        return { success: true, videoId, videoUrl, scheduledTime }
+      } catch (err) {
+        lastErr = err
+        const transient = /invalid_request|rateLimit|backendError|internal|timeout|ECONNRESET|503|500/i.test(err.message || '')
+        console.error(`❌ Upload attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
+        if (attempt < maxAttempts && transient) {
+          await new Promise((r) => setTimeout(r, 2000 * attempt))
+          oauth2Client.setCredentials({ refresh_token: process.env.YOUTUBE_REFRESH_TOKEN })
+          continue
+        }
+        break
       }
-    })
-
-    const videoId = response.data.id
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
-
-    console.log('✅ YouTube upload successful!')
-    console.log(`🔗 Video URL: ${videoUrl}`)
-
-    return {
-      success: true,
-      videoId,
-      videoUrl,
-      scheduledTime
     }
+    return { success: false, error: lastErr ? lastErr.message : 'unknown upload error' }
   } catch (error) {
     console.error('❌ YouTube upload failed:', error.message)
-    return {
-      success: false,
-      error: error.message
-    }
+    return { success: false, error: error.message }
   }
 }
 
