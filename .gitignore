@@ -18,3 +18,6 @@ data/
 temp_audio_*.mp3
 *.log
 _dbg.mjs
+
+# downloaded avatar face cache (regenerated at runtime)
+assets/avatars/

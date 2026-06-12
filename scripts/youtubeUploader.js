@@ -1,21 +1,33 @@
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { google } from 'googleapis'
 import dotenv from 'dotenv'
 
-dotenv.config()
+// Load .env by absolute path: under launchd the cwd is NOT the project, and this
+// module is imported (and would otherwise read env) before the entrypoint's own
+// dotenv.config() runs.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+dotenv.config({ path: path.join(ROOT, '.env') })
 
-// YouTube API setup
-const youtube = google.youtube({
-  version: 'v3',
-  auth: process.env.YOUTUBE_API_KEY
-})
+// Built lazily (not at import time) so credentials are read after every chance
+// to load .env, and missing ones fail loudly instead of as opaque OAuth errors.
+function createOAuthClient () {
+  const missing = ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN']
+    .filter((name) => !process.env[name])
+  if (missing.length > 0) {
+    throw new Error(`YouTube upload misconfigured: missing env var(s) ${missing.join(', ')}`)
+  }
+  const client = new google.auth.OAuth2(
+    process.env.YOUTUBE_CLIENT_ID,
+    process.env.YOUTUBE_CLIENT_SECRET,
+    process.env.YOUTUBE_REDIRECT_URI
+  )
+  client.setCredentials({ refresh_token: process.env.YOUTUBE_REFRESH_TOKEN })
+  return client
+}
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.YOUTUBE_CLIENT_ID,
-  process.env.YOUTUBE_CLIENT_SECRET,
-  process.env.YOUTUBE_REDIRECT_URI
-)
+const youtube = google.youtube({ version: 'v3' })
 
 export async function uploadToYouTube (videoPath, title, description, tags = [], scheduledTime = null) {
   try {
@@ -28,10 +40,7 @@ export async function uploadToYouTube (videoPath, title, description, tags = [],
       console.log(`⏰ Scheduled for: ${scheduledTime}`)
     }
 
-    // Set credentials
-    oauth2Client.setCredentials({
-      refresh_token: process.env.YOUTUBE_REFRESH_TOKEN
-    })
+    const oauth2Client = createOAuthClient()
 
     // Prepare upload parameters
     const requestBody = {
@@ -58,7 +67,8 @@ export async function uploadToYouTube (videoPath, title, description, tags = [],
     }
 
     // Upload the video, retrying transient failures (a fresh access token and a
-    // new read stream each attempt — invalid_request/5xx can be momentary).
+    // new read stream each attempt). invalid_request is NOT retried: it means
+    // bad/missing OAuth config and fails identically every time.
     const maxAttempts = 3
     let lastErr
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -76,11 +86,13 @@ export async function uploadToYouTube (videoPath, title, description, tags = [],
         return { success: true, videoId, videoUrl, scheduledTime }
       } catch (err) {
         lastErr = err
-        const transient = /invalid_request|rateLimit|backendError|internal|timeout|ECONNRESET|503|500/i.test(err.message || '')
+        const transient = /rateLimit|backendError|internal|timeout|ECONNRESET|503|500/i.test(err.message || '')
         console.error(`❌ Upload attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
         if (attempt < maxAttempts && transient) {
           await new Promise((r) => setTimeout(r, 2000 * attempt))
-          oauth2Client.setCredentials({ refresh_token: process.env.YOUTUBE_REFRESH_TOKEN })
+          // Force a fresh access token for the next attempt (setCredentials with
+          // the same refresh token would be a no-op).
+          try { await oauth2Client.getAccessToken() } catch { /* next insert reports it */ }
           continue
         }
         break
