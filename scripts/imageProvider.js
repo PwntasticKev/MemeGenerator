@@ -178,24 +178,79 @@ const TITLE_STOPWORDS = new Set([
   'season', 'episode', 'series', 'show', 'hd', 'poster', 'debate', 'drama'
 ])
 
-function significantTokens (text) {
+// Sequel numbers, roman numerals, and years distinguish EDITIONS of the same
+// franchise ("Mortal Kombat" vs "Mortal Kombat II", "Cape Fear (1962)" vs the
+// 1991 remake). They are short, so they need their own pattern — the length>=3
+// word filter would drop them.
+//
+// Deliberately NARROW: only sequel numbers 1-19 and 19xx/20xx years. A bare
+// \d+ would treat resolution tokens (720, 1080, 2160) as editions and falsely
+// reject valid images. Single-letter romans (i, v, x) are also deliberately
+// excluded — they collide with ordinary words/initials ("Saw X", "Rocky V"
+// are simply treated as numeral-free rather than risk false vetoes).
+const SEQUEL_OR_YEAR_RE = /^(1[0-9]?|[2-9]|19\d{2}|20\d{2})$/
+// Roman numerals canonicalize to digits so "Mortal Kombat II" and
+// "Mortal Kombat 2" are recognized as the SAME edition.
+const ROMAN_TO_DIGIT = Object.freeze({
+  ii: '2', iii: '3', iv: '4', vi: '6', vii: '7', viii: '8', ix: '9',
+  xi: '11', xii: '12', xiii: '13', xiv: '14', xv: '15'
+})
+
+function isNumeralToken (w) {
+  return SEQUEL_OR_YEAR_RE.test(w) || Object.hasOwn(ROMAN_TO_DIGIT, w)
+}
+
+function tokenize (text) {
   return String(text)
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
-    .filter((w) => w.length >= 3 && !TITLE_STOPWORDS.has(w))
+    .filter(Boolean)
+}
+
+function significantTokens (text) {
+  return tokenize(text).filter(
+    (w) => (w.length >= 3 || isNumeralToken(w)) && !TITLE_STOPWORDS.has(w)
+  )
+}
+
+// Edition-distinguishing tokens (sequel numbers / years) of a title, in
+// canonical digit form (II -> 2).
+function numeralTokens (text) {
+  return tokenize(text)
+    .filter(isNumeralToken)
+    .map((w) => ROMAN_TO_DIGIT[w] || w)
+}
+
+// Do two source titles refer to DIFFERENT editions of something? True when both
+// carry numerals (sequel number / year) and they share none — e.g. "Cape Fear
+// (1991 film)" vs "Cape Fear 1962 poster". Used so the images of one video can
+// never mix two films/editions. A numeral-free title never conflicts.
+export function numeralConflict (titleA, titleB) {
+  const a = numeralTokens(titleA)
+  const b = numeralTokens(titleB)
+  if (a.length === 0 || b.length === 0) return false
+  return !a.some((n) => b.includes(n))
 }
 
 // Does `candidateTitle` plausibly refer to the same thing as `topic`?
-// Requires that a majority of the topic's distinctive tokens appear in the title.
+// EVERY distinctive word of the topic must appear as a whole word in the title
+// (a 2/3 overlap let "Super Mario Bros" art through for "Super Mario Galaxy"),
+// and a title carrying a sequel/year numeral that contradicts the topic's is
+// rejected. Titles with no numeral are NOT vetoed — catalog titles (iTunes)
+// rarely carry years.
 export function isRelevantTitle (candidateTitle, topic) {
   const topicTokens = significantTokens(topic)
   if (topicTokens.length === 0) return true // nothing to match on — don't over-filter
-  const hay = ' ' + String(candidateTitle).toLowerCase().replace(/[^a-z0-9]/g, ' ') + ' '
-  const matched = topicTokens.filter((t) => hay.includes(' ' + t + ' ') || hay.includes(t))
-  const ratio = matched.length / topicTokens.length
-  // Single-token topics: that token must be present. Multi-token: at least half.
-  return topicTokens.length === 1 ? matched.length === 1 : ratio >= 0.5
+  const hay = ' ' + tokenize(candidateTitle).join(' ') + ' '
+  const words = topicTokens.filter((t) => !isNumeralToken(t))
+  if (!words.every((w) => hay.includes(` ${w} `))) return false
+  const topicNums = numeralTokens(topic)
+  const titleNums = numeralTokens(candidateTitle)
+  if (topicNums.length > 0 && titleNums.length > 0 && !topicNums.some((n) => titleNums.includes(n))) {
+    return false
+  }
+  return true
 }
 
 // ---------------------------------------------------------------------------
@@ -219,12 +274,14 @@ async function tmdbSearchMulti (query) {
   return hit || null
 }
 
-async function tmdbImageUrls (query, limit) {
+async function tmdbImageUrls (query, limit, topic) {
   const key = process.env.TMDB_API_KEY
   if (!key) return []
   try {
     const hit = await tmdbSearchMulti(query)
     if (!hit) return []
+    const hitTitle = hit.title || hit.name || ''
+    if (!isRelevantTitle(hitTitle, topic || query)) return []
 
     const type = hit.media_type
     const id = hit.id
@@ -242,7 +299,7 @@ async function tmdbImageUrls (query, limit) {
       .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
       .map((p) => p.file_path)
       .filter(Boolean)
-      .map((p) => `${TMDB_IMG_BASE}${p}`)
+      .map((p) => ({ url: `${TMDB_IMG_BASE}${p}`, title: hitTitle }))
 
     return paths.slice(0, limit)
   } catch {
@@ -258,7 +315,7 @@ export function googleConfigured () {
   return Boolean(process.env.GOOGLE_API_KEY && process.env.CX_ID)
 }
 
-async function googleImageUrls (query, limit) {
+async function googleImageUrls (query, limit, topic) {
   if (!googleConfigured()) return []
   try {
     const url =
@@ -269,7 +326,10 @@ async function googleImageUrls (query, limit) {
       '&searchType=image&imgSize=large&num=' +
       Math.min(limit, 10)
     const { data } = await axios.get(url, { timeout: 10000 })
-    return (data.items || []).map((i) => i.link).filter(Boolean)
+    return (data.items || [])
+      .filter((i) => isRelevantTitle(`${i.title || ''} ${i.snippet || ''}`, topic || query))
+      .map((i) => (i.link ? { url: i.link, title: i.title || '' } : null))
+      .filter(Boolean)
   } catch {
     return []
   }
@@ -309,24 +369,31 @@ async function itunesGet (url, attempts = 3) {
 async function itunesImageUrls (query, limit, topic) {
   const entities = ['movie', 'tvSeason', 'album', 'musicVideo']
   const relevanceTarget = topic || query
+  // iTunes search returns ZERO results when the term carries a disambiguation
+  // parenthetical ("Cape Fear (1991)") — strip it from the QUERY only; the
+  // full topic still drives relevance, and the result's releaseDate year is
+  // appended to its title so the year veto can tell editions apart.
+  const searchTerm = query.replace(/\s*\([^)]*\)\s*$/, '').trim() || query
   try {
     const groups = await Promise.all(
       entities.map(async (entity) => {
         try {
           const url =
             'https://itunes.apple.com/search' +
-            `?term=${encodeURIComponent(query)}` +
+            `?term=${encodeURIComponent(searchTerm)}` +
             `&entity=${entity}&limit=4`
           const data = await itunesGet(url)
           return (data.results || [])
+            .map((r) => {
+              const year = String(r.releaseDate || '').slice(0, 4)
+              const title = [r.trackName, r.collectionName, r.artistName, year]
+                .filter(Boolean)
+                .join(' ')
+              return { raw: r.artworkUrl100 || r.artworkUrl60, title }
+            })
             // Only keep results whose title actually matches the topic.
-            .filter((r) => isRelevantTitle(
-              `${r.trackName || ''} ${r.collectionName || ''} ${r.artistName || ''}`,
-              relevanceTarget
-            ))
-            .map((r) => r.artworkUrl100 || r.artworkUrl60)
-            .filter(Boolean)
-            .map(upscaleItunesArtwork)
+            .filter((c) => c.raw && isRelevantTitle(c.title, relevanceTarget))
+            .map((c) => ({ url: upscaleItunesArtwork(c.raw), title: c.title }))
         } catch {
           return []
         }
@@ -362,7 +429,10 @@ async function wikipediaLeadImageUrls (query, limit, topic) {
     return pages
       .sort((a, b) => (a.index || 99) - (b.index || 99))
       .filter((p) => isRelevantTitle(p.title || '', topic || query))
-      .map((p) => p?.original?.source || p?.thumbnail?.source)
+      .map((p) => {
+        const src = p?.original?.source || p?.thumbnail?.source
+        return src ? { url: src, title: p.title || '' } : null
+      })
       .filter(Boolean)
   } catch {
     return []
@@ -392,7 +462,8 @@ async function wikimediaCommonsImageUrls (query, limit, topic) {
         const mime = String(info.mime || '')
         // Skip SVGs/PDF/TIFF that sharp-on-canvas handles poorly as photos.
         if (mime && !/^image\/(jpe?g|png|webp|gif)$/.test(mime)) return null
-        return info.thumburl || info.url
+        const src = info.thumburl || info.url
+        return src ? { url: src, title: p.title || '' } : null
       })
       .filter(Boolean)
   } catch {
@@ -414,24 +485,28 @@ async function wikipediaImageUrls (query, limit, topic) {
 // Orchestration
 // ---------------------------------------------------------------------------
 
-// Build an ordered, de-duplicated list of candidate URLs across all sources.
+// Build an ordered, de-duplicated list of candidates across all sources. Each
+// candidate is { url, title } — title is the SOURCE's name for the image (used
+// for the cross-image same-edition check). Scraped URLs have no title (null).
 async function gatherCandidateUrls (term, perSource, scrape, topic) {
   const groups = await Promise.all([
-    tmdbImageUrls(term, perSource),
-    googleImageUrls(term, perSource),
+    tmdbImageUrls(term, perSource, topic),
+    googleImageUrls(term, perSource, topic),
     itunesImageUrls(term, perSource, topic),
     wikipediaImageUrls(term, perSource, topic),
     typeof scrape === 'function'
-      ? Promise.resolve(scrape(term, perSource)).catch(() => [])
+      ? Promise.resolve(scrape(term, perSource))
+        .then((urls) => (urls || []).map((u) => ({ url: u, title: null })))
+        .catch(() => [])
       : Promise.resolve([])
   ])
   const seen = new Set()
   const ordered = []
   for (const group of groups) {
-    for (const u of group || []) {
-      if (u && !seen.has(u) && !isBannedHost(u)) {
-        seen.add(u)
-        ordered.push(u)
+    for (const c of group || []) {
+      if (c && c.url && !seen.has(c.url) && !isBannedHost(c.url)) {
+        seen.add(c.url)
+        ordered.push(c)
       }
     }
   }
@@ -462,14 +537,22 @@ export async function getValidImages ({ searchTerms, count = 2, outputDir, scrap
   const collected = []
   const usedUrls = new Set()
   const acceptedHashes = []
+  const acceptedTitles = []
 
   for (const term of searchTerms) {
     if (collected.length >= count) break
     const candidates = await gatherCandidateUrls(term, count + 6, scrape, topic)
-    for (const url of candidates) {
+    for (const { url, title } of candidates) {
       if (collected.length >= count) break
       if (usedUrls.has(url)) continue
       usedUrls.add(url)
+
+      // Same-edition guard: all images of one video must depict the SAME
+      // film/show. A candidate whose source title carries a sequel/year numeral
+      // conflicting with an already-accepted image's title (e.g. "Cape Fear
+      // (1991)" after "Cape Fear 1962 poster") is a different edition — skip it.
+      if (title && acceptedTitles.some((t) => numeralConflict(title, t))) continue
+
       const result = await fetchAndValidate(url)
       if (!result) continue
 
@@ -482,7 +565,8 @@ export async function getValidImages ({ searchTerms, count = 2, outputDir, scrap
       const ext = result.meta.format === 'jpeg' ? 'jpg' : result.meta.format
       const filePath = path.join(outputDir, `image_${collected.length + 1}.${ext}`)
       fs.writeFileSync(filePath, result.buffer)
-      collected.push({ path: filePath, url, meta: result.meta })
+      if (title) acceptedTitles.push(title)
+      collected.push({ path: filePath, url, title: title || null, meta: result.meta })
     }
   }
 
