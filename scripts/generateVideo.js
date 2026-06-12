@@ -9,6 +9,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { generateMemeContent } from './contentGenerator.js'
 import { getValidImages } from './imageProvider.js'
+import { getAvatarPath } from './avatarProvider.js'
 import { renderFrame, LAYOUTS } from './layouts.js'
 import { pickOverlayForMood } from './overlayPool.js'
 import { addRandomAudioToVideo, addRandomAudioToVideoWithMotion } from './audioManager.js'
@@ -58,6 +59,12 @@ export async function createVideoForTopic (opts) {
   // creepy overlay, kids movie -> bright one), avoiding the previous video's pick.
   const layout = process.env.LAYOUT || pickLayoutDistinct(avoid.layout)
   const overlayPath = pickOverlayForMood(content.mood, avoid.overlayPath)
+
+  // Commenter avatar: a real-looking human face so the fake comment reads as a
+  // real person (falls back to drawn initials if no face is available).
+  const avatarPath = await getAvatarPath()
+  log(avatarPath ? `Avatar: ${path.basename(avatarPath)}` : 'Avatar: initials fallback (no face available)')
+
   const framePath = path.join(outDir, 'frame.png')
   await renderFrame({
     layout,
@@ -67,7 +74,8 @@ export async function createVideoForTopic (opts) {
     reply: content.reply,
     outputPath: framePath,
     handle: content.handle,
-    name: content.name
+    name: content.name,
+    avatarPath
   })
   log(`Template rendered (mood: ${content.mood}, layout: ${layout}, overlay: ${path.basename(path.dirname(overlayPath))}/${path.basename(overlayPath)}).`)
 

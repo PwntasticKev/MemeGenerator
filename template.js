@@ -41,7 +41,10 @@ function drawRoundedRect (ctx, x, y, width, height, radius) {
   ctx.closePath()
 }
 
-export async function generateTemplate ({ overlayPath, image1, image2, fact, reply, outputPath, avatarPath = './assets/mainoverlay_1.png', handle = '@memecreator', name = 'Meme Creator' }) {
+// avatarPath should be a local photo of the commenter's face (avatarProvider);
+// when absent we draw a colored-initials circle — NEVER an overlay graphic,
+// which used to be the default and looked like a glitch.
+export async function generateTemplate ({ overlayPath, image1, image2, fact, reply, outputPath, avatarPath = null, handle = '@memecreator', name = 'Meme Creator' }) {
   const WIDTH = 1080
   const HEIGHT = 1920
   const CARD_WIDTH = 900 // Further reduced for more right-side breathing room
@@ -307,10 +310,39 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
     createFallbackImage(RIGHT_IMAGE_X, IMAGE_Y, IMAGE_WIDTH, IMAGE_HEIGHT, 'Image 2', false)
   }
 
-  // Draw avatar
+  // Draw avatar: photo when provided, colored-initials circle otherwise. The
+  // card must always look like a real person commented — never a blank or a
+  // stretched graphic.
+  const drawInitialsAvatar = () => {
+    const initials = String(name)
+      .replace(/[^a-zA-Z ]/g, '')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0].toUpperCase())
+      .join('') || '@'
+    const colors = ['#667eea', '#764ba2', '#f5576c', '#4facfe', '#11998e', '#e1306c']
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(AVATAR_X + AVATAR_SIZE / 2, AVATAR_Y + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, 2 * Math.PI)
+    ctx.closePath()
+    ctx.clip()
+    ctx.fillStyle = colors[initials.charCodeAt(0) % colors.length]
+    ctx.fill()
+    ctx.fillStyle = 'white'
+    ctx.font = `bold ${Math.round(AVATAR_SIZE * 0.4)}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(initials, AVATAR_X + AVATAR_SIZE / 2, AVATAR_Y + AVATAR_SIZE / 2 + 2)
+    ctx.restore()
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+  }
+
   try {
+    if (!avatarPath) throw new Error('no avatar provided')
     let avatarBuf
-    if (avatarPath && avatarPath.startsWith('http')) {
+    if (avatarPath.startsWith('http')) {
       const resp = await axios.get(avatarPath, { responseType: 'arraybuffer' })
       avatarBuf = resp.data
     } else {
@@ -322,18 +354,14 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
     ctx.arc(AVATAR_X + AVATAR_SIZE / 2, AVATAR_Y + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, 2 * Math.PI)
     ctx.closePath()
     ctx.clip()
-    ctx.drawImage(avatarImg, AVATAR_X, AVATAR_Y, AVATAR_SIZE, AVATAR_SIZE)
+    // Cover-fit so non-square photos aren't distorted.
+    const s = Math.max(AVATAR_SIZE / avatarImg.width, AVATAR_SIZE / avatarImg.height)
+    const dw = avatarImg.width * s
+    const dh = avatarImg.height * s
+    ctx.drawImage(avatarImg, AVATAR_X + (AVATAR_SIZE - dw) / 2, AVATAR_Y + (AVATAR_SIZE - dh) / 2, dw, dh)
     ctx.restore()
   } catch (e) {
-    // fallback: blank circle
-    ctx.save()
-    ctx.beginPath()
-    ctx.arc(AVATAR_X + AVATAR_SIZE / 2, AVATAR_Y + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, 2 * Math.PI)
-    ctx.closePath()
-    ctx.clip()
-    ctx.fillStyle = '#eee'
-    ctx.fill()
-    ctx.restore()
+    drawInitialsAvatar()
   }
 
   // Draw name and handle (FIXED: Proper spacing and alignment)
@@ -364,7 +392,7 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
 }
 
 // New function to generate template with MP4 video background
-export async function generateTemplateWithVideo ({ videoOverlayPath, image1, image2, fact, reply, outputPath, avatarPath = './assets/mainoverlay_1.png', handle = '@memecreator', name = 'Meme Creator' }) {
+export async function generateTemplateWithVideo ({ videoOverlayPath, image1, image2, fact, reply, outputPath, avatarPath = null, handle = '@memecreator', name = 'Meme Creator' }) {
   const WIDTH = 1080
   const HEIGHT = 1920
   const CARD_WIDTH = 1000 // Increased width to be closer to edges
@@ -602,10 +630,39 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
     createFallbackImage(RIGHT_IMAGE_X, IMAGE_Y, IMAGE_WIDTH, IMAGE_HEIGHT, 'Image 2', false)
   }
 
-  // Draw avatar
+  // Draw avatar: photo when provided, colored-initials circle otherwise. The
+  // card must always look like a real person commented — never a blank or a
+  // stretched graphic.
+  const drawInitialsAvatar = () => {
+    const initials = String(name)
+      .replace(/[^a-zA-Z ]/g, '')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0].toUpperCase())
+      .join('') || '@'
+    const colors = ['#667eea', '#764ba2', '#f5576c', '#4facfe', '#11998e', '#e1306c']
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(AVATAR_X + AVATAR_SIZE / 2, AVATAR_Y + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, 2 * Math.PI)
+    ctx.closePath()
+    ctx.clip()
+    ctx.fillStyle = colors[initials.charCodeAt(0) % colors.length]
+    ctx.fill()
+    ctx.fillStyle = 'white'
+    ctx.font = `bold ${Math.round(AVATAR_SIZE * 0.4)}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(initials, AVATAR_X + AVATAR_SIZE / 2, AVATAR_Y + AVATAR_SIZE / 2 + 2)
+    ctx.restore()
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+  }
+
   try {
+    if (!avatarPath) throw new Error('no avatar provided')
     let avatarBuf
-    if (avatarPath && avatarPath.startsWith('http')) {
+    if (avatarPath.startsWith('http')) {
       const resp = await axios.get(avatarPath, { responseType: 'arraybuffer' })
       avatarBuf = resp.data
     } else {
@@ -617,18 +674,14 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
     ctx.arc(AVATAR_X + AVATAR_SIZE / 2, AVATAR_Y + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, 2 * Math.PI)
     ctx.closePath()
     ctx.clip()
-    ctx.drawImage(avatarImg, AVATAR_X, AVATAR_Y, AVATAR_SIZE, AVATAR_SIZE)
+    // Cover-fit so non-square photos aren't distorted.
+    const s = Math.max(AVATAR_SIZE / avatarImg.width, AVATAR_SIZE / avatarImg.height)
+    const dw = avatarImg.width * s
+    const dh = avatarImg.height * s
+    ctx.drawImage(avatarImg, AVATAR_X + (AVATAR_SIZE - dw) / 2, AVATAR_Y + (AVATAR_SIZE - dh) / 2, dw, dh)
     ctx.restore()
   } catch (e) {
-    // fallback: blank circle
-    ctx.save()
-    ctx.beginPath()
-    ctx.arc(AVATAR_X + AVATAR_SIZE / 2, AVATAR_Y + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, 2 * Math.PI)
-    ctx.closePath()
-    ctx.clip()
-    ctx.fillStyle = '#eee'
-    ctx.fill()
-    ctx.restore()
+    drawInitialsAvatar()
   }
 
   // Draw name and handle (FIXED: Proper spacing and alignment)

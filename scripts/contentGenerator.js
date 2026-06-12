@@ -60,8 +60,8 @@ Return ONLY valid JSON with EXACTLY these fields:
   "youtube_description": "1 short provocative sentence, then 10-15 hashtags MIXING: broad reach (#shorts #fyp #viral #movies), franchise/title-specific (e.g. #${topic.replace(/[^a-zA-Z0-9]/g, '')}), and debate (#hottake #filmtheory #moviedebate #unpopularopinion)",
   "image_search_terms": ["3 specific search terms — use the exact ${topic} title, not generic words"],
   "avatar_search_terms": ["2 avatar/profile-pic search terms"],
-  "handle": "<INVENT a punchy @handle, lowercase, e.g. @cinemashade or @hottakeharold — do NOT echo this text>",
-  "name": "<INVENT a matching display name, e.g. Cinema Shade — do NOT echo this text>",
+  "handle": "<INVENT a realistic personal username a normal person would have: lowercase first/last-name bits, optional dots/underscores/2-digit number, e.g. @jess.carterr, @mikedelgado_, @tina.alv92 — NEVER a brand/page/bot-style name; do NOT echo this text>",
+  "name": "<INVENT the matching real-person display name, e.g. Jess Carter — a plausible human name, not a page name; do NOT echo this text>",
   "mood": "the movie/show's single dominant mood, EXACTLY one of: horror, action, comedy, kids, scifi, fantasy, drama, thriller, neutral",
   "tags": ["3-6 short tags"]
 }
@@ -100,36 +100,83 @@ function asArray (value, fallback) {
   return fallback
 }
 
-// Random persona pool — used when the model echoes a placeholder handle/name
-// instead of inventing one, or leaves it blank.
+// Random persona pool — used when the model echoes a placeholder handle/name,
+// leaves it blank, or invents something bot/brand-looking. Every entry must
+// read like a REAL PERSON commenting (first+last name, casual handle), never
+// a meme page or a bot.
 const PERSONAS = [
-  { name: 'Cinema Shade', handle: '@cinemashade' },
-  { name: 'Hot Take Harold', handle: '@hottakeharold' },
-  { name: 'The Spicy Critic', handle: '@spicycritic' },
-  { name: 'Reel Truths', handle: '@reeltruths' },
-  { name: 'Unpopular Opinions', handle: '@unpopular.ops' },
-  { name: 'Couch Contrarian', handle: '@couchcontrarian' },
-  { name: 'Plot Hole Patrol', handle: '@plotholepatrol' },
-  { name: 'Screen Sniper', handle: '@screensniper' }
+  { name: 'Jess Carter', handle: '@jess.carterr' },
+  { name: 'Mike Delgado', handle: '@mikedelgado_' },
+  { name: 'Tina Alvarez', handle: '@tina.alv92' },
+  { name: 'Sam Okafor', handle: '@samokafor' },
+  { name: 'Lena Brooks', handle: '@lenabrooks_04' },
+  { name: 'Chris Bautista', handle: '@c.bautista7' },
+  { name: 'Maya Lindqvist', handle: '@maya.lindq' },
+  { name: 'Derek Liu', handle: '@derekliu88' },
+  { name: 'Abby Stone', handle: '@abbystonee' },
+  { name: 'Jordan Price', handle: '@jordanp_44' },
+  { name: 'Nina Rossi', handle: '@nina.rossi3' },
+  { name: 'Theo Marsh', handle: '@theomarsh_' }
 ]
 
 // Detect placeholder/echoed text the model sometimes copies from the prompt.
-const PLACEHOLDER_RE = /invent|do not echo|echo this|creative (display|handle)|unrelated_to_topic|display name|<.*>|punchy @handle/i
+const PLACEHOLDER_RE = /invent|do not echo|echo this|creative (display|handle)|unrelated_to_topic|display name|<.*>|punchy @handle|personal username/i
 
-function cleanPersona (rawName, rawHandle, topic) {
+// What a real person's username looks like: lowercase letters/digits with
+// optional dots/underscores, 3-25 chars. Anything else (spaces, symbols,
+// uppercase soup) reads as a bot or a brand page.
+const HUMAN_HANDLE_RE = /^[a-z0-9][a-z0-9._]{2,24}$/
+// Display names: letters with normal name punctuation, max 30 chars.
+const HUMAN_NAME_RE = /^[A-Za-z][A-Za-z .'-]{1,29}$/
+// Digit-soup handles (@user48211998877) scream "bot" even when syntactically valid.
+const MAX_HANDLE_DIGITS = 4
+
+// Random (not topic-deterministic) so a repeat topic doesn't get pinned to
+// the identical persona every day — that repetition itself reads as botted.
+function fallbackPersona () {
+  return PERSONAS[Math.floor(Math.random() * PERSONAS.length)]
+}
+
+// Salvage model output before rejecting it: strip illegal characters, fix
+// case, trim length. Only fall back when nothing human-looking remains —
+// over-rejecting would funnel everything into the small pool.
+function salvageHandle (raw) {
+  const cleaned = String(raw)
+    .toLowerCase()
+    .replace(/^@/, '')
+    .replace(/[^a-z0-9._]/g, '')
+    // Edge dots aren't valid usernames on most platforms; edge underscores are.
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, 24)
+  if (!HUMAN_HANDLE_RE.test(cleaned)) return null
+  if (cleaned.replace(/[^0-9]/g, '').length > MAX_HANDLE_DIGITS) return null
+  return cleaned
+}
+
+function salvageName (raw) {
+  const cleaned = String(raw)
+    .replace(/[^A-Za-z .'-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 30)
+  return HUMAN_NAME_RE.test(cleaned) ? cleaned : null
+}
+
+function cleanPersona (rawName, rawHandle) {
   const bad = (v) => !v || typeof v !== 'string' || !v.trim() || PLACEHOLDER_RE.test(v)
-  if (bad(rawName) || bad(rawHandle)) {
-    // Deterministic-ish pick from topic so it's stable per topic but varied across topics.
-    const idx = Math.abs([...String(topic)].reduce((a, c) => a + c.charCodeAt(0), 0)) % PERSONAS.length
-    return PERSONAS[idx]
-  }
-  return { name: rawName.trim(), handle: rawHandle.trim().startsWith('@') ? rawHandle.trim() : `@${rawHandle.trim()}` }
+  if (bad(rawName) || bad(rawHandle)) return fallbackPersona()
+
+  const name = salvageName(rawName)
+  const handle = salvageHandle(rawHandle)
+  if (!name || !handle) return fallbackPersona()
+
+  return { name, handle: `@${handle}` }
 }
 
 // Normalize a raw (possibly partial) model object into the full content shape.
 export function normalizeContent (raw, topic) {
   const safe = raw && typeof raw === 'object' ? raw : {}
-  const persona = cleanPersona(safe.name, safe.handle, topic)
+  const persona = cleanPersona(safe.name, safe.handle)
   return {
     fact: asText(safe.fact, `${topic} is the most overrated thing of the decade`, 120),
     reply: asText(safe.reply, 'Finally someone said it out loud', 90),
@@ -189,4 +236,4 @@ export async function generateMemeContent (topic, opts = {}) {
   }
 }
 
-export const __config = { DEFAULT_MODEL }
+export const __config = { DEFAULT_MODEL, PERSONAS }

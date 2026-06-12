@@ -107,8 +107,23 @@ function initialsOf (name) {
 
 const AVATAR_COLORS = ['#667eea', '#764ba2', '#f5576c', '#4facfe', '#11998e', '#e1306c']
 
-function drawAvatar (ctx, name, cx, cy, size) {
+// Photo avatar when available (cover-fit inside the circle), otherwise the
+// colored-initials fallback — the card should always show SOMETHING human.
+function drawAvatar (ctx, name, cx, cy, size, avatarImg = null) {
   const r = size / 2
+  if (avatarImg) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.closePath()
+    ctx.clip()
+    const scale = Math.max(size / avatarImg.width, size / avatarImg.height)
+    const dw = avatarImg.width * scale
+    const dh = avatarImg.height * scale
+    ctx.drawImage(avatarImg, cx - dw / 2, cy - dh / 2, dw, dh)
+    ctx.restore()
+    return
+  }
   ctx.save()
   ctx.beginPath()
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
@@ -126,9 +141,9 @@ function drawAvatar (ctx, name, cx, cy, size) {
 }
 
 // Avatar (circle) + name (bold) + handle (gray). Returns Y below the block.
-function drawIdentity (ctx, name, handle, x, y) {
+function drawIdentity (ctx, name, handle, x, y, avatarImg = null) {
   const size = 80
-  drawAvatar(ctx, name, x + size / 2, y + size / 2, size)
+  drawAvatar(ctx, name, x + size / 2, y + size / 2, size, avatarImg)
   const textX = x + size + 24
   ctx.fillStyle = '#222'
   ctx.font = 'bold 32px Arial'
@@ -192,7 +207,7 @@ function writePng (cnv, outputPath) {
 
 // --- layout: single-hero --------------------------------------------------
 
-async function renderSingleHero ({ overlayPath, images, fact, reply, handle, name, outputPath }) {
+async function renderSingleHero ({ overlayPath, images, fact, reply, handle, name, outputPath, avatarImg }) {
   const { cnv, ctx } = await baseCanvas(overlayPath)
   const innerW = CARD_W - PAD * 2
 
@@ -211,7 +226,7 @@ async function renderSingleHero ({ overlayPath, images, fact, reply, handle, nam
   y += 30
   await drawImageCover(ctx, images[0], CARD_X + PAD, y, innerW, heroH, 28)
   y += heroH + 36
-  const idBottom = drawIdentity(ctx, name, handle, CARD_X + PAD, y)
+  const idBottom = drawIdentity(ctx, name, handle, CARD_X + PAD, y, avatarImg)
   y = idBottom + 24
   drawReply(ctx, reply, CARD_X + PAD, y, innerW)
 
@@ -220,7 +235,7 @@ async function renderSingleHero ({ overlayPath, images, fact, reply, handle, nam
 
 // --- layout: stacked (two images vertical) --------------------------------
 
-async function renderStacked ({ overlayPath, images, fact, reply, handle, name, outputPath }) {
+async function renderStacked ({ overlayPath, images, fact, reply, handle, name, outputPath, avatarImg }) {
   const { cnv, ctx } = await baseCanvas(overlayPath)
   const innerW = CARD_W - PAD * 2
   const imgH = 280
@@ -239,7 +254,7 @@ async function renderStacked ({ overlayPath, images, fact, reply, handle, name, 
   y += imgH + gap
   await drawImageCover(ctx, images[1] || images[0], CARD_X + PAD, y, innerW, imgH, 24)
   y += imgH + 32
-  const idBottom = drawIdentity(ctx, name, handle, CARD_X + PAD, y)
+  const idBottom = drawIdentity(ctx, name, handle, CARD_X + PAD, y, avatarImg)
   y = idBottom + 24
   drawReply(ctx, reply, CARD_X + PAD, y, innerW)
 
@@ -248,7 +263,7 @@ async function renderStacked ({ overlayPath, images, fact, reply, handle, name, 
 
 // --- layout: versus (this-or-that, big headline) --------------------------
 
-async function renderVersus ({ overlayPath, images, fact, reply, handle, name, outputPath }) {
+async function renderVersus ({ overlayPath, images, fact, reply, handle, name, outputPath, avatarImg }) {
   const { cnv, ctx } = await baseCanvas(overlayPath)
   const innerW = CARD_W - PAD * 2
 
@@ -301,7 +316,7 @@ async function renderVersus ({ overlayPath, images, fact, reply, handle, name, o
   ctx.textBaseline = 'top'
 
   y += imgSize + 34
-  const idBottom = drawIdentity(ctx, name, handle, CARD_X + PAD, y)
+  const idBottom = drawIdentity(ctx, name, handle, CARD_X + PAD, y, avatarImg)
   y = idBottom + 24
   drawReply(ctx, reply, CARD_X + PAD, y, innerW)
 
@@ -320,6 +335,7 @@ async function renderVersus ({ overlayPath, images, fact, reply, handle, name, o
  * @param {string} opts.reply
  * @param {string} opts.handle
  * @param {string} opts.name
+ * @param {string} [opts.avatarPath]  local image of the commenter's face (else initials)
  * @param {string} opts.outputPath
  * @returns {Promise<string>} outputPath
  */
@@ -329,13 +345,24 @@ export async function renderFrame (opts) {
     throw new Error('renderFrame: at least one image is required')
   }
 
+  // Load the avatar once here; a broken/missing file degrades to initials.
+  let avatarImg = null
+  if (opts.avatarPath) {
+    try {
+      avatarImg = await canvas.loadImage(opts.avatarPath)
+    } catch {
+      avatarImg = null
+    }
+  }
+  const layoutOpts = { ...opts, avatarImg }
+
   switch (layout) {
     case 'single-hero':
-      return renderSingleHero(opts)
+      return renderSingleHero(layoutOpts)
     case 'stacked':
-      return renderStacked(opts)
+      return renderStacked(layoutOpts)
     case 'versus':
-      return renderVersus(opts)
+      return renderVersus(layoutOpts)
     case 'classic':
     default:
       // Proven two-image tweet-card.
@@ -347,7 +374,8 @@ export async function renderFrame (opts) {
         reply: opts.reply,
         outputPath: opts.outputPath,
         handle: opts.handle,
-        name: opts.name
+        name: opts.name,
+        avatarPath: opts.avatarPath || null
       })
       return opts.outputPath
   }
