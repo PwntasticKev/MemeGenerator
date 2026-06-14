@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.memegenerator.stats</string>
+
+    <!-- Daily performance snapshot. Calls Node DIRECTLY (Node lives in ~/.nvm,
+         not a macOS-protected folder, so launchd can launch it). Node needs Full
+         Disk Access granted (same as the daily job) to read/write the project in
+         ~/Documents. Reads YouTube stats over the network and appends a snapshot
+         to data/stats-history.json — no ffmpeg/canvas needed. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/kevinlee/.nvm/versions/node/v22.12.0/bin/node</string>
+        <string>/Users/kevinlee/Documents/code/MemeGenerator/scripts/trackStats.js</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <!-- 8:00pm local: late enough that the day's videos have published and
+         accumulated views, giving a clean ~24h-cadence time series. If the Mac
+         is asleep at 8pm, launchd runs it on the next wake. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>20</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/kevinlee/Documents/code/MemeGenerator/logs/stats.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/kevinlee/Documents/code/MemeGenerator/logs/stats.err.log</string>
+</dict>
+</plist>
