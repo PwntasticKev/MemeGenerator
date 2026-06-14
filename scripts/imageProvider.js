@@ -366,8 +366,15 @@ async function itunesGet (url, attempts = 3) {
   return { results: [] }
 }
 
-async function itunesImageUrls (query, limit, topic) {
-  const entities = ['movie', 'tvSeason', 'album', 'musicVideo']
+// Poster/still entities (movie, TV) vs. music entities (album, musicVideo).
+// Soundtrack/album covers are a WEAK first frame for a movie/TV channel — a
+// CD or a busy collage instead of key art — so the orchestrator queries the
+// two sets separately and treats music art as backfill only. See
+// gatherCandidateUrls.
+const ITUNES_POSTER_ENTITIES = ['movie', 'tvSeason']
+const ITUNES_MUSIC_ENTITIES = ['album', 'musicVideo']
+
+async function itunesImageUrls (query, limit, topic, entities = ITUNES_POSTER_ENTITIES) {
   const relevanceTarget = topic || query
   // iTunes search returns ZERO results when the term carries a disambiguation
   // parenthetical ("Cape Fear (1991)") — strip it from the QUERY only; the
@@ -471,16 +478,6 @@ async function wikimediaCommonsImageUrls (query, limit, topic) {
   }
 }
 
-// Combined keyless Wikimedia source: lead images first (most on-topic), then
-// Commons file search to backfill additional distinct images.
-async function wikipediaImageUrls (query, limit, topic) {
-  const [lead, commons] = await Promise.all([
-    wikipediaLeadImageUrls(query, limit, topic),
-    wikimediaCommonsImageUrls(query, limit, topic)
-  ])
-  return [...lead, ...commons]
-}
-
 // ---------------------------------------------------------------------------
 // Orchestration
 // ---------------------------------------------------------------------------
@@ -488,18 +485,31 @@ async function wikipediaImageUrls (query, limit, topic) {
 // Build an ordered, de-duplicated list of candidates across all sources. Each
 // candidate is { url, title } — title is the SOURCE's name for the image (used
 // for the cross-image same-edition check). Scraped URLs have no title (null).
+//
+// Order is by IMAGE TYPE, not just by source, so the strongest first frame
+// wins. Real poster/still art (TMDB, Google, iTunes movie/TV, Wikipedia lead)
+// comes FIRST; soundtrack/album covers and Commons file noise are BACKFILL,
+// used only when no real key art exists. This stops weak topics from shipping
+// a CD cover as image #1 (the Avatar / Mortal Kombat II failure).
 async function gatherCandidateUrls (term, perSource, scrape, topic) {
-  const groups = await Promise.all([
-    tmdbImageUrls(term, perSource, topic),
-    googleImageUrls(term, perSource, topic),
-    itunesImageUrls(term, perSource, topic),
-    wikipediaImageUrls(term, perSource, topic),
-    typeof scrape === 'function'
-      ? Promise.resolve(scrape(term, perSource))
-        .then((urls) => (urls || []).map((u) => ({ url: u, title: null })))
-        .catch(() => [])
-      : Promise.resolve([])
+  const [posterTier, backfillTier] = await Promise.all([
+    Promise.all([
+      tmdbImageUrls(term, perSource, topic),
+      googleImageUrls(term, perSource, topic),
+      itunesImageUrls(term, perSource, topic, ITUNES_POSTER_ENTITIES),
+      wikipediaLeadImageUrls(term, perSource, topic)
+    ]),
+    Promise.all([
+      itunesImageUrls(term, perSource, topic, ITUNES_MUSIC_ENTITIES),
+      wikimediaCommonsImageUrls(term, perSource, topic),
+      typeof scrape === 'function'
+        ? Promise.resolve(scrape(term, perSource))
+          .then((urls) => (urls || []).map((u) => ({ url: u, title: null })))
+          .catch(() => [])
+        : Promise.resolve([])
+    ])
   ])
+  const groups = [...posterTier, ...backfillTier]
   const seen = new Set()
   const ordered = []
   for (const group of groups) {

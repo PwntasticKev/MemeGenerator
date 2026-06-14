@@ -23,10 +23,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..')
 const HISTORY_PATH = path.join(ROOT, 'data', 'posted-history.json')
 
-// Curated last-resort seeds (all reliably image-resolvable) if every feed fails.
+// Curated fallback seeds — all instantly recognizable, big-fandom, reliably
+// image-resolvable titles. Used BEFORE unranked raw-trending so a thin GPT
+// ranking degrades to a known winner, never to obscure feed noise (the
+// Dandelion / Hokum class of dead uploads). Keep these evergreen-recognizable.
 const SEED_TOPICS = [
   'The Godfather', 'Breaking Bad', 'Oppenheimer', 'Stranger Things',
-  'Dune', 'Inside Out 2', 'The Batman', 'Squid Game'
+  'Dune: Part Two', 'Inside Out 2', 'The Batman', 'Squid Game',
+  'Deadpool & Wolverine', 'Wednesday', 'The Last of Us', 'Avatar',
+  'Star Wars', 'Harry Potter', 'The Dark Knight', 'Game of Thrones',
+  'Spider-Man: No Way Home', 'John Wick', 'House of the Dragon', 'Gladiator II',
+  'The Lord of the Rings', 'Joker', 'Wicked', 'Beetlejuice Beetlejuice'
 ]
 
 // --- history --------------------------------------------------------------
@@ -147,19 +154,28 @@ async function rankTopics (candidates, avoid) {
           role: 'user',
           content:
             `From this list of trending items, pick the 8 BEST rage-bait topics.\n\n` +
+            `THE #1 RULE — RECOGNIZABILITY: only pick a title if YOU yourself recognize it as a ` +
+            `genuinely famous movie or TV show with a large fanbase. On a Shorts feed, a viewer ` +
+            `who doesn't instantly recognize the title swipes away in under a second and the video ` +
+            `dies. If you are NOT confident a typical 16-34 film/TV fan would recognize it on sight, ` +
+            `DO NOT include it — leave the slot out rather than fill it with something obscure. ` +
+            `Returning 4 famous titles is far better than 8 padded with unknowns.\n\n` +
             `STRONGLY PREFER:\n` +
             `- Currently trending or recent (last ~5 years) movies & TV shows\n` +
             `- Massive passionate fandoms: Marvel, DC, Star Wars, John Wick, Dune, horror franchises (Terrifier, etc.), big Netflix/HBO shows, blockbuster sequels\n` +
             `- Titles people are actively arguing about right now\n\n` +
-            `HARD-AVOID (these flop or backfire):\n` +
-            `- Old/dated movies (pre-2010 unless a still-huge franchise)\n` +
-            `- Obscure, arthouse, foreign, or niche titles nobody's talking about\n` +
+            `HARD-AVOID (these flop or backfire — exclude completely):\n` +
+            `- MUSIC: albums, songs, artists, soundtracks. This is a MOVIE/TV channel — a music ` +
+            `title (e.g. a one-word album name) has no recognizable movie art and always dies.\n` +
+            `- Obscure, arthouse, foreign, indie, or niche titles nobody's talking about\n` +
+            `- Old/dated movies (pre-2010 unless a still-huge franchise like Star Wars/LOTR)\n` +
             `- News, politics, tragedies, real people, poems, historical or non-entertainment topics\n` +
-            `- AMBIGUOUS one-word or common-name titles that could mean several things (e.g. "Michael", "It", "Them", "Smile") — they break image search. Prefer a full, unmistakable title ("Deadpool & Wolverine", "Dune: Part Two", "Stranger Things").\n\n` +
+            `- AMBIGUOUS one-word or common-name titles that could mean several things (e.g. "Michael", "It", "Them", "Smile", "Dandelion", "Hokum") — they break image search and recognition. Prefer a full, unmistakable title ("Deadpool & Wolverine", "Dune: Part Two", "Stranger Things").\n\n` +
             `Also AVOID anything similar to these recently-used: ${avoid.join(', ') || '(none)'}.\n\n` +
             `Trending items:\n${candidates.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\n` +
-            `Return JSON: {"topics": ["title1", ..., "title8"]}, best first. Each must be the EXACT, CLEAN ` +
-            `movie/show/franchise name — do NOT add words like "The Drama of", ": A Debate", or "Reboot" unless that's the real title.`
+            `Return JSON: {"topics": ["title1", ...]}, best first, UP TO 8 but ONLY genuinely famous ones ` +
+            `(fewer is better than padding). Each must be the EXACT, CLEAN movie/show/franchise name — ` +
+            `do NOT add words like "The Drama of", ": A Debate", or "Reboot" unless that's the real title.`
         }
       ],
       temperature: 0.7,
@@ -209,20 +225,23 @@ export async function selectDailyTopic (opts = {}) {
   const candidates = await fetchTrendingCandidates()
   const ranked = candidates.length ? await rankTopics(candidates, avoid) : []
 
-  // Ordered preference: GPT-ranked trending -> raw trending -> seeds.
+  // Ordered preference: GPT-ranked trending -> curated seeds -> raw trending.
+  // Seeds come BEFORE unranked raw-trending: if the ranker is thin (or rejected
+  // everything as obscure), degrade to a recognizable winner, not to feed noise
+  // — unranked raw items are exactly the obscure/music titles that die.
   // Clean again in case the ranker re-introduced a qualifier.
   const ordered = [
     ...ranked.map(cleanTopic),
-    ...candidates.filter((c) => !ranked.some((r) => r.toLowerCase() === c.toLowerCase())),
-    ...SEED_TOPICS
+    ...SEED_TOPICS,
+    ...candidates.filter((c) => !ranked.some((r) => r.toLowerCase() === c.toLowerCase()))
   ].filter((t) => t && !avoid.includes(t.toLowerCase()))
 
   const sourceOf = (t) =>
     ranked.some((r) => r.toLowerCase() === t.toLowerCase())
       ? 'gpt-ranked-trending'
-      : candidates.some((c) => c.toLowerCase() === t.toLowerCase())
-        ? 'raw-trending'
-        : 'seed'
+      : SEED_TOPICS.some((s) => s.toLowerCase() === t.toLowerCase())
+        ? 'seed'
+        : 'raw-trending'
 
   for (const topic of ordered) {
     if (!validateImages || (await topicHasImages(topic))) {
