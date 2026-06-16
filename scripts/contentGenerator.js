@@ -56,7 +56,7 @@ The goal: make the viewer think "whoa, I never realized that" and feel smart —
 
 Return ONLY valid JSON with EXACTLY these fields:
 {
-  "fact": "a genuinely FASCINATING, SPECIFIC insight about ${topic}: hidden lore, an alternate-history 'what if', a detail everyone missed, a deeper thematic meaning, a creator's intent, or a wild behind-the-scenes truth. 2-3 short sentences, roughly 150-210 characters — and ALWAYS finish your final sentence, never trail off mid-thought. Structure as an interesting setup THEN a payoff/twist that reframes how you see ${topic}. Must be SPECIFIC to a real character/scene/plot/creator and TRUE/credible — if it's a real fact, ground it (e.g. 'George Lucas said...'). NEVER generic 'bad'/'overrated'/'trash'.",
+  "fact": "a genuinely FASCINATING, SPECIFIC insight about ${topic}: hidden lore, an alternate-history 'what if', a detail everyone missed, a deeper thematic meaning, a creator's intent, or a wild behind-the-scenes truth. 1-2 short sentences, roughly 120-190 characters — and ALWAYS finish your final sentence, never trail off mid-thought. Structure as an interesting setup THEN a payoff/twist that reframes how you see ${topic}. Must be SPECIFIC to a real character/scene/plot/creator and TRUE/credible — if it's a real fact, ground it (e.g. 'George Lucas said...'). NEVER generic 'bad'/'overrated'/'trash'.",
   "reply": "a thoughtful, smart, DEBATABLE opinion that builds on the fact and gives people something to agree or disagree with — a sharp observation a real fan would make. Keep it PUNCHY and SHORT: ONE natural sentence like a real fan's comment (8-16 words), never an essay, never trailing off mid-thought. NO emojis, NO questions, NO hashtags.",
   "youtube_title": "a short, natural, conversational comment-bait hook — a question or speculative 'imagine' the viewer wants to answer, e.g. 'What would you have done?', 'Did they take it too far?', 'Imagine if this actually happened', 'Bet you never noticed this'. Human and casual, NEVER a rigid clickbait template.",
   "youtube_description": "1 short intriguing sentence, then 8-12 hashtags MIXING: broad reach (#shorts #viral #movies), franchise/title-specific (e.g. #${topic.replace(/[^a-zA-Z0-9]/g, '')}), and discussion (#filmtheory #movielore #didyouknow #moviedebate)",
@@ -87,8 +87,13 @@ function asText (value, fallback, maxLen) {
   const str = typeof value === 'string' && value.trim() ? value.trim() : fallback
   if (!maxLen || str.length <= maxLen) return str
   const cut = str.slice(0, maxLen)
-  const sentenceEnd = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '))
-  if (sentenceEnd > maxLen * 0.5) return cut.slice(0, sentenceEnd + 1).trim()
+  // Last COMPLETE sentence: terminal . ! ? optionally wrapped by a closing
+  // quote/bracket (so "...my father.'" counts), followed by space or end.
+  let sentenceEnd = -1
+  const re = /[.!?]['"”’)\]]?(?=\s|$)/g
+  let m
+  while ((m = re.exec(cut)) !== null) sentenceEnd = m.index + m[0].length
+  if (sentenceEnd > maxLen * 0.35) return cut.slice(0, sentenceEnd).trim()
   const lastSpace = cut.lastIndexOf(' ')
   const trimmed = lastSpace > maxLen * 0.6 ? cut.slice(0, lastSpace) : cut
   return trimmed.replace(/[\s,;:.–-]+$/, '')
