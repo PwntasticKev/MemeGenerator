@@ -259,23 +259,43 @@ export function isRelevantTitle (candidateTitle, topic) {
 
 const TMDB_IMG_BASE = 'https://image.tmdb.org/t/p/w780'
 
+// Resolve the key, treating the .env placeholder ("your-...-here") as unset so
+// we don't fire doomed requests before a real key is pasted.
+function tmdbKey () {
+  const k = process.env.TMDB_API_KEY
+  return k && !/^your-|-here$/i.test(k) ? k : null
+}
+
 export function tmdbConfigured () {
-  return Boolean(process.env.TMDB_API_KEY)
+  return Boolean(tmdbKey())
 }
 
 async function tmdbSearchMulti (query) {
-  const key = process.env.TMDB_API_KEY
+  const key = tmdbKey()
   if (!key) return null
   const url = `https://api.themoviedb.org/3/search/multi?api_key=${key}&query=${encodeURIComponent(query)}&include_adult=false`
   const { data } = await axios.get(url, { timeout: 10000 })
-  const hit = (data.results || []).find((r) =>
-    ['movie', 'tv', 'person'].includes(r.media_type)
+  const results = data.results || []
+  // Prefer a movie/TV match (gives scene backdrops) over a person match.
+  return (
+    results.find((r) => r.media_type === 'movie' || r.media_type === 'tv') ||
+    results.find((r) => r.media_type === 'person') ||
+    null
   )
-  return hit || null
+}
+
+// Order each image group by vote_count and tag with the title.
+function tmdbGroup (images, hitTitle) {
+  return (images || [])
+    .slice()
+    .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
+    .map((p) => p.file_path)
+    .filter(Boolean)
+    .map((p) => ({ url: `${TMDB_IMG_BASE}${p}`, title: hitTitle }))
 }
 
 async function tmdbImageUrls (query, limit, topic) {
-  const key = process.env.TMDB_API_KEY
+  const key = tmdbKey()
   if (!key) return []
   try {
     const hit = await tmdbSearchMulti(query)
@@ -291,15 +311,15 @@ async function tmdbImageUrls (query, limit, topic) {
         : `https://api.themoviedb.org/3/${type}/${id}/images?api_key=${key}`
 
     const { data } = await axios.get(endpoint, { timeout: 10000 })
-    const paths = [
-      ...(data.posters || []),
-      ...(data.backdrops || []),
-      ...(data.profiles || [])
-    ]
-      .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
-      .map((p) => p.file_path)
-      .filter(Boolean)
-      .map((p) => ({ url: `${TMDB_IMG_BASE}${p}`, title: hitTitle }))
+    // Lead with the EMOTIONAL character imagery this channel needs — scene
+    // backdrops (stills) and person profiles (faces) — and use vertical poster
+    // art only as backfill. This is the whole reason to add TMDB: real stills,
+    // not poster/soundtrack art.
+    const groups =
+      type === 'person'
+        ? [data.profiles, data.backdrops, data.posters]
+        : [data.backdrops, data.posters]
+    const paths = groups.flatMap((g) => tmdbGroup(g, hitTitle))
 
     return paths.slice(0, limit)
   } catch {
