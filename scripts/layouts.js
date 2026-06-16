@@ -198,13 +198,13 @@ function drawIdentity (ctx, name, handle, x, y, avatarImg = null) {
   return y + size
 }
 
-function drawFact (ctx, fact, x, y, maxWidth, fontSize = 50) {
+function drawFact (ctx, fact, x, y, maxWidth, fontSize = 40) {
   const lines = wrapText(ctx, fact, maxWidth, fontSize, 'bold')
   ctx.fillStyle = '#1a1a1a'
   ctx.font = `bold ${fontSize}px Arial`
   ctx.textBaseline = 'top'
   let yy = y
-  const lh = Math.round(fontSize * 1.15)
+  const lh = Math.round(fontSize * 1.18)
   for (const line of lines) {
     ctx.fillText(line, x, yy)
     yy += lh
@@ -256,8 +256,8 @@ async function renderSingleHero ({ overlayPath, images, fact, reply, handle, nam
 
   // Measure to size the card.
   const factBottom = (() => {
-    const lines = wrapText(ctx, fact, innerW, 50, 'bold')
-    return CARD_Y + PAD + lines.length * 58
+    const lines = wrapText(ctx, fact, innerW, 40, 'bold')
+    return CARD_Y + PAD + lines.length * 47
   })()
   const heroH = 540
   const idH = 80
@@ -284,14 +284,14 @@ async function renderStacked ({ overlayPath, images, fact, reply, handle, name, 
   const imgH = 280
   const gap = 16
 
-  const factLines = wrapText(ctx, fact, innerW, 48, 'bold')
-  const factBottom = CARD_Y + PAD + factLines.length * 56
+  const factLines = wrapText(ctx, fact, innerW, 40, 'bold')
+  const factBottom = CARD_Y + PAD + factLines.length * 47
   const idH = 80
   const replyLines = wrapText(ctx, reply, innerW, 38)
   const cardH = (factBottom - CARD_Y) + 28 + imgH * 2 + gap + 32 + idH + 24 + replyLines.length * 46 + PAD
 
   drawCard(ctx, CARD_X, CARD_Y, CARD_W, cardH)
-  let y = drawFact(ctx, fact, CARD_X + PAD, CARD_Y + PAD, innerW, 48)
+  let y = drawFact(ctx, fact, CARD_X + PAD, CARD_Y + PAD, innerW, 40)
   y += 28
   await drawImageCover(ctx, images[0], CARD_X + PAD, y, innerW, imgH, 24)
   y += imgH + gap
@@ -311,8 +311,8 @@ async function renderVersus ({ overlayPath, images, fact, reply, handle, name, o
   const innerW = CARD_W - PAD * 2
 
   // Centered headline.
-  const factLines = wrapText(ctx, fact, innerW, 52, 'bold')
-  const factH = factLines.length * 60
+  const factLines = wrapText(ctx, fact, innerW, 42, 'bold')
+  const factH = factLines.length * 50
   const imgSize = 400
   const imgGap = 24
   const idH = 80
@@ -323,13 +323,13 @@ async function renderVersus ({ overlayPath, images, fact, reply, handle, name, o
 
   // Headline centered.
   ctx.fillStyle = '#1a1a1a'
-  ctx.font = 'bold 52px Arial'
+  ctx.font = 'bold 42px Arial'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
   let y = CARD_Y + PAD
   for (const line of factLines) {
     ctx.fillText(line, WIDTH / 2, y)
-    y += 60
+    y += 50
   }
   ctx.textAlign = 'left'
   y += 34

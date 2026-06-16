@@ -115,9 +115,9 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
   }
 
   // Calculate content height to make card dynamic
-  ctx.font = 'bold 48px Arial'
-  const factLines = wrapCanvasText(ctx, fact, CARD_WIDTH - 120, 48) // 60px padding on each side
-  const factHeight = factLines.length * 56
+  ctx.font = 'bold 40px Arial'
+  const factLines = wrapCanvasText(ctx, fact, CARD_WIDTH - 120, 40) // 60px padding on each side
+  const factHeight = factLines.length * 47
 
   ctx.font = '40px Arial'
   const replyLines = wrapCanvasText(ctx, reply, CARD_WIDTH - 120, 40) // 60px padding on each side
@@ -145,12 +145,12 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
 
   // Draw fact text first (at the top)
   ctx.fillStyle = '#222'
-  ctx.font = 'bold 48px Arial'
+  ctx.font = 'bold 40px Arial'
   ctx.textBaseline = 'top'
   let factY = FACT_Y
   for (const line of factLines) {
     ctx.fillText(line, CARD_X + 60, factY)
-    factY += 56
+    factY += 47
   }
 
   // Helper function to create fallback image
@@ -458,9 +458,9 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
   const ctx = cnv.getContext('2d')
 
   // Calculate content height to make card dynamic
-  ctx.font = 'bold 48px Arial'
-  const factLines = wrapCanvasText(ctx, fact, CARD_WIDTH - 120, 48) // 60px padding on each side
-  const factHeight = factLines.length * 56
+  ctx.font = 'bold 40px Arial'
+  const factLines = wrapCanvasText(ctx, fact, CARD_WIDTH - 120, 40) // 60px padding on each side
+  const factHeight = factLines.length * 47
 
   ctx.font = '40px Arial'
   const replyLines = wrapCanvasText(ctx, reply, CARD_WIDTH - 120, 40) // 60px padding on each side
@@ -488,12 +488,12 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
 
   // Draw fact text first (at the top)
   ctx.fillStyle = '#222'
-  ctx.font = 'bold 48px Arial'
+  ctx.font = 'bold 40px Arial'
   ctx.textBaseline = 'top'
   let factY = FACT_Y
   for (const line of factLines) {
     ctx.fillText(line, CARD_X + 60, factY)
-    factY += 56
+    factY += 47
   }
 
   // Helper function to draw image with proper aspect ratio (like CSS object-fit: contain)
