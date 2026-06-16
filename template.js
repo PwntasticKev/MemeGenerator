@@ -41,25 +41,18 @@ function drawRoundedRect (ctx, x, y, width, height, radius) {
   ctx.closePath()
 }
 
-// X "verified" badge: scalloped blue disc + white check. Pure canvas, no asset.
-// (Duplicated from layouts.js rather than imported to avoid a circular import.)
+// Generic 'verified'-style check: a plain disc + white check. Deliberately NOT
+// X's (or Meta's) distinctive scalloped badge — reads as a credible account
+// mark without copying any platform's trademarked icon. (Duplicated from
+// layouts.js to avoid a circular import.)
 function drawVerifiedBadge (ctx, cx, cy, r) {
   ctx.save()
-  ctx.fillStyle = '#1d9bf0'
+  ctx.fillStyle = '#3d9be0'
   ctx.beginPath()
-  const lobes = 8
-  for (let i = 0; i < lobes * 2; i++) {
-    const ang = (Math.PI / lobes) * i - Math.PI / 2
-    const rad = i % 2 === 0 ? r : r * 0.84
-    const px = cx + Math.cos(ang) * rad
-    const py = cy + Math.sin(ang) * rad
-    if (i === 0) ctx.moveTo(px, py)
-    else ctx.lineTo(px, py)
-  }
-  ctx.closePath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.fill()
   ctx.strokeStyle = '#fff'
-  ctx.lineWidth = Math.max(2, r * 0.22)
+  ctx.lineWidth = Math.max(2, r * 0.24)
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   ctx.beginPath()
@@ -70,28 +63,18 @@ function drawVerifiedBadge (ctx, cx, cy, r) {
   ctx.restore()
 }
 
-// X (formerly Twitter) logo — the OFFICIAL glyph traced as a filled path (with
-// its inner counter) so it reads as the real brand mark, not a stray "close" X.
-// node-canvas lacks Path2D(svg), so the outline is hard-coded in a 24-unit box
-// and scaled to `size`. (Duplicated from layouts.js to avoid a circular import.)
-const X_LOGO_OUTER = [
-  [18.244, 2.25], [21.552, 2.25], [14.325, 10.51], [22.827, 21.75], [16.17, 21.75],
-  [10.956, 14.933], [4.99, 21.75], [1.68, 21.75], [9.41, 12.915], [1.254, 2.25],
-  [8.08, 2.25], [12.793, 8.481]
-]
-const X_LOGO_COUNTER = [[17.083, 19.77], [18.916, 19.77], [7.084, 4.126], [5.117, 4.126]]
-
-function drawXLogo (ctx, cx, cy, size) {
+// Three-dot "more" menu — the universal post-overflow control. Generic social
+// UI with NO platform trademark (replaces the X logo that previously sat here).
+function drawMenuDots (ctx, cx, cy, size) {
   ctx.save()
-  ctx.fillStyle = '#000'
-  ctx.translate(cx - size / 2, cy - size / 2)
-  ctx.scale(size / 24, size / 24)
-  ctx.beginPath()
-  X_LOGO_OUTER.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])))
-  ctx.closePath()
-  X_LOGO_COUNTER.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])))
-  ctx.closePath()
-  ctx.fill('evenodd')
+  ctx.fillStyle = '#9aa0a6'
+  const dotR = size * 0.10
+  const gap = size * 0.34
+  for (const dx of [-gap, 0, gap]) {
+    ctx.beginPath()
+    ctx.arc(cx + dx, cy, dotR, 0, Math.PI * 2)
+    ctx.fill()
+  }
   ctx.restore()
 }
 
@@ -418,8 +401,9 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
     drawInitialsAvatar()
   }
 
-  // Draw name + verified badge, handle, and the X logo at the row's far right
-  // (where X shows the post menu) so the card reads as a real screenshot from X.
+  // Draw name + verified-style check, handle, and a three-dot menu at the row's
+  // far right, so the card reads as a credible social-post screenshot without
+  // copying any platform's trademarked badge/logo.
   ctx.fillStyle = '#222'
   ctx.font = 'bold 32px Arial'
   ctx.textBaseline = 'top'
@@ -429,7 +413,7 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
   ctx.fillStyle = '#888'
   ctx.font = '28px Arial'
   ctx.fillText(handle, NAME_X, HANDLE_Y)
-  drawXLogo(ctx, CARD_X + CARD_WIDTH - 60 - 17, AVATAR_Y + 28, 34)
+  drawMenuDots(ctx, CARD_X + CARD_WIDTH - 60 - 17, AVATAR_Y + 28, 30)
 
   // Draw reply text (FIXED: Proper positioning after avatar section)
   ctx.fillStyle = '#444'
@@ -742,8 +726,9 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
     drawInitialsAvatar()
   }
 
-  // Draw name + verified badge, handle, and the X logo at the row's far right
-  // (where X shows the post menu) so the card reads as a real screenshot from X.
+  // Draw name + verified-style check, handle, and a three-dot menu at the row's
+  // far right, so the card reads as a credible social-post screenshot without
+  // copying any platform's trademarked badge/logo.
   ctx.fillStyle = '#222'
   ctx.font = 'bold 32px Arial'
   ctx.textBaseline = 'top'
@@ -753,7 +738,7 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
   ctx.fillStyle = '#888'
   ctx.font = '28px Arial'
   ctx.fillText(handle, NAME_X, HANDLE_Y)
-  drawXLogo(ctx, CARD_X + CARD_WIDTH - 60 - 17, AVATAR_Y + 28, 34)
+  drawMenuDots(ctx, CARD_X + CARD_WIDTH - 60 - 17, AVATAR_Y + 28, 30)
 
   // Draw reply text (FIXED: Proper positioning after avatar section)
   ctx.fillStyle = '#444'
