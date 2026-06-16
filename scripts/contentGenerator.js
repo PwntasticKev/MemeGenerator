@@ -57,7 +57,7 @@ The goal: make the viewer think "whoa, I never realized that" and feel smart —
 Return ONLY valid JSON with EXACTLY these fields:
 {
   "fact": "a genuinely FASCINATING, SPECIFIC insight about ${topic}: hidden lore, an alternate-history 'what if', a detail everyone missed, a deeper thematic meaning, a creator's intent, or a wild behind-the-scenes truth. 2-3 short sentences, roughly 150-210 characters — and ALWAYS finish your final sentence, never trail off mid-thought. Structure as an interesting setup THEN a payoff/twist that reframes how you see ${topic}. Must be SPECIFIC to a real character/scene/plot/creator and TRUE/credible — if it's a real fact, ground it (e.g. 'George Lucas said...'). NEVER generic 'bad'/'overrated'/'trash'.",
-  "reply": "a thoughtful, smart, DEBATABLE opinion that builds on the fact and gives people something to agree or disagree with (max 90 chars) — a sharp observation a real fan would make. NO emojis, NO questions, NO hashtags.",
+  "reply": "a thoughtful, smart, DEBATABLE opinion that builds on the fact and gives people something to agree or disagree with — a sharp observation a real fan would make. Keep it PUNCHY and SHORT: ONE natural sentence like a real fan's comment (8-16 words), never an essay, never trailing off mid-thought. NO emojis, NO questions, NO hashtags.",
   "youtube_title": "a short, natural, conversational comment-bait hook — a question or speculative 'imagine' the viewer wants to answer, e.g. 'What would you have done?', 'Did they take it too far?', 'Imagine if this actually happened', 'Bet you never noticed this'. Human and casual, NEVER a rigid clickbait template.",
   "youtube_description": "1 short intriguing sentence, then 8-12 hashtags MIXING: broad reach (#shorts #viral #movies), franchise/title-specific (e.g. #${topic.replace(/[^a-zA-Z0-9]/g, '')}), and discussion (#filmtheory #movielore #didyouknow #moviedebate)",
   "image_search_terms": ["3 specific search terms — use the exact ${topic} title, not generic words"],
@@ -190,7 +190,7 @@ export function normalizeContent (raw, topic) {
   const persona = cleanPersona(safe.name, safe.handle)
   return {
     fact: asText(safe.fact, `Most people never notice what ${topic} is really about`, 240),
-    reply: asText(safe.reply, 'The best stories hide their meaning in plain sight', 90),
+    reply: asText(safe.reply, 'The best stories hide their meaning in plain sight', 160),
     // Cap at 100: YouTube rejects titles longer than 100 chars.
     youtube_title: asText(safe.youtube_title, `Bet you never noticed this about ${topic}`, 100),
     youtube_description: asText(
