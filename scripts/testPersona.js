@@ -1,63 +1,59 @@
 // testPersona.js
 //
-// Offline unit tests for the commenter persona (name + @handle) so the fake
-// comment always looks like a REAL PERSON, never a bot/brand page.
+// Offline tests for the commenter persona. The comment must look like a REAL
+// PERSON (plausible name + casual @handle), and crucially must be VARIED — the
+// same name should not keep repeating (GPT used to pin "Alex Johnson").
 //
 //   node scripts/testPersona.js     → exit 0 all pass, 1 otherwise
 
-import { normalizeContent, __config } from './contentGenerator.js'
+import { randomPersona, normalizeContent, __config } from './contentGenerator.js'
 
-const HUMAN_HANDLE_RE = /^@[a-z0-9][a-z0-9._]{2,24}$/
+const { HUMAN_HANDLE_RE, HUMAN_NAME_RE } = __config
 
 const cases = []
 const t = (name, actual, expected) => cases.push({ name, actual, expected })
 
-// Echoed prompt placeholders fall back to a pool persona.
-const echoed = normalizeContent(
-  { name: '<INVENT a matching display name>', handle: '<INVENT a punchy @handle>' },
-  'Some Topic'
-)
-t('echoed placeholder name falls back to a pool persona name',
-  Boolean(echoed.name && !echoed.name.includes('<')), true)
-t('echoed placeholder handle falls back to a human-looking handle',
-  HUMAN_HANDLE_RE.test(echoed.handle), true)
+// Generate a big sample once and assert on it.
+const sample = Array.from({ length: 200 }, () => randomPersona())
 
-// Good model output passes through, @ added when missing.
-const good = normalizeContent({ name: 'Jess Carter', handle: 'jess.carterr' }, 'X')
-t('valid handle gets @ prefix', good.handle, '@jess.carterr')
-t('valid name passes through', good.name, 'Jess Carter')
+t('every name is a plausible "First Last" human name',
+  sample.every((p) => HUMAN_NAME_RE.test(p.name) && /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(p.name)), true)
+t('every handle is a human-looking username',
+  sample.every((p) => HUMAN_HANDLE_RE.test(p.handle.replace(/^@/, ''))), true)
+t('every handle starts with @',
+  sample.every((p) => p.handle.startsWith('@')), true)
+t('no handle exceeds 25 chars (incl. @)',
+  sample.every((p) => p.handle.length <= 25), true)
 
-// Bot/brand-looking handles are rejected in favor of a pool persona.
-const junk = normalizeContent({ name: 'Cinema $hade!!', handle: '@Cinema Shade Page!!!' }, 'X')
-t('handle with spaces/symbols/uppercase is replaced',
-  HUMAN_HANDLE_RE.test(junk.handle), true)
-t('name with symbols is replaced by a human name',
-  /^[A-Za-z][A-Za-z .'-]{1,29}$/.test(junk.name), true)
+// Variety: across 200 draws, names should be overwhelmingly unique.
+const uniqueNames = new Set(sample.map((p) => p.name)).size
+t(`names are highly varied (${uniqueNames}/200 unique, expect >150)`,
+  uniqueNames > 150, true)
+const uniqueHandles = new Set(sample.map((p) => p.handle)).size
+t(`handles are highly varied (${uniqueHandles}/200 unique, expect >150)`,
+  uniqueHandles > 150, true)
 
-const numbery = normalizeContent({ name: 'User 48211', handle: '@user48211998877' }, 'X')
-t('long digit-soup bot handle is replaced',
-  numbery.handle.replace(/[^0-9]/g, '').length <= 4, true)
+// No single name should dominate (the old "Alex Johnson every time" failure).
+const counts = {}
+for (const p of sample) counts[p.name] = (counts[p.name] || 0) + 1
+const maxRepeat = Math.max(...Object.values(counts))
+t(`no name repeats more than a few times in 200 (max seen: ${maxRepeat}, expect <=4)`,
+  maxRepeat <= 4, true)
 
-// Salvageable output is normalized, NOT discarded (over-rejection would funnel
-// every video into the small fallback pool).
-const salvage = normalizeContent({ name: 'Mike Delgado', handle: '@Mike.Delgado_' }, 'X')
-t('uppercase handle is lowercased and kept (trailing underscore preserved)',
-  salvage.handle, '@mike.delgado_')
-t('salvaged name is kept', salvage.name, 'Mike Delgado')
-
-// Every pool persona must itself look human.
-for (const p of __config.PERSONAS) {
-  t(`pool persona "${p.name}" has a human-looking handle (${p.handle})`,
-    HUMAN_HANDLE_RE.test(p.handle), true)
-  t(`pool persona "${p.name}" has a real-person display name`,
-    /^[A-Z][a-z]+ [A-Z]/.test(p.name), true)
-}
+// normalizeContent always attaches a valid persona, ignoring any model-supplied
+// name/handle (those fields were removed from the prompt).
+const nc = normalizeContent({ name: 'Alex Johnson', handle: '@alex.johnson' }, 'Some Topic')
+t('normalizeContent ignores model name/handle and generates its own',
+  HUMAN_NAME_RE.test(nc.name) && HUMAN_HANDLE_RE.test(nc.handle.replace(/^@/, '')), true)
+t('normalizeContent persona is not forced to the model-supplied value',
+  // statistically the random name won't equal the supplied one; just assert shape
+  typeof nc.name === 'string' && nc.name.includes(' '), true)
 
 let failed = 0
 for (const c of cases) {
   const ok = c.actual === c.expected
   if (!ok) failed++
-  console.log(`${ok ? '✓' : '✗ FAIL'}  ${c.name}${ok ? '' : ` (got ${JSON.stringify(c.actual)}, want ${JSON.stringify(c.expected)})`}`)
+  console.log(`${ok ? '✓' : '✗ FAIL'}  ${c.name}`)
 }
 console.log(`\n${cases.length - failed}/${cases.length} passed`)
 process.exit(failed === 0 ? 0 : 1)

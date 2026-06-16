@@ -62,8 +62,6 @@ Return ONLY valid JSON with EXACTLY these fields:
   "youtube_description": "1 short intriguing sentence, then 8-12 hashtags MIXING: broad reach (#shorts #viral #movies), franchise/title-specific (e.g. #${topic.replace(/[^a-zA-Z0-9]/g, '')}), and discussion (#filmtheory #movielore #didyouknow #moviedebate)",
   "image_search_terms": ["3 specific search terms — use the exact ${topic} title, not generic words"],
   "avatar_search_terms": ["2 avatar/profile-pic search terms"],
-  "handle": "<INVENT a realistic personal username a normal person would have: lowercase first/last-name bits, optional dots/underscores/2-digit number, e.g. @jess.carterr, @mikedelgado_, @tina.alv92 — NEVER a brand/page/bot-style name; do NOT echo this text>",
-  "name": "<INVENT the matching real-person display name, e.g. Jess Carter — a plausible human name, not a page name; do NOT echo this text>",
   "mood": "the movie/show's single dominant mood, EXACTLY one of: horror, action, comedy, kids, scifi, fantasy, drama, thriller, neutral",
   "tags": ["3-6 short tags"]
 }
@@ -116,83 +114,52 @@ function asArray (value, fallback) {
   return fallback
 }
 
-// Random persona pool — used when the model echoes a placeholder handle/name,
-// leaves it blank, or invents something bot/brand-looking. Every entry must
-// read like a REAL PERSON commenting (first+last name, casual handle), never
-// a meme page or a bot.
-const PERSONAS = [
-  { name: 'Jess Carter', handle: '@jess.carterr' },
-  { name: 'Mike Delgado', handle: '@mikedelgado_' },
-  { name: 'Tina Alvarez', handle: '@tina.alv92' },
-  { name: 'Sam Okafor', handle: '@samokafor' },
-  { name: 'Lena Brooks', handle: '@lenabrooks_04' },
-  { name: 'Chris Bautista', handle: '@c.bautista7' },
-  { name: 'Maya Lindqvist', handle: '@maya.lindq' },
-  { name: 'Derek Liu', handle: '@derekliu88' },
-  { name: 'Abby Stone', handle: '@abbystonee' },
-  { name: 'Jordan Price', handle: '@jordanp_44' },
-  { name: 'Nina Rossi', handle: '@nina.rossi3' },
-  { name: 'Theo Marsh', handle: '@theomarsh_' }
+// Persona is generated LOCALLY from large, diverse name pools rather than asked
+// of the model — GPT reaches for the same few names ("Alex Johnson") over and
+// over, which reads as botted. First x Last = thousands of combinations, so the
+// commenter name is effectively never repeated.
+const FIRST_NAMES = [
+  'Jess', 'Mike', 'Tina', 'Sam', 'Lena', 'Chris', 'Maya', 'Derek', 'Abby',
+  'Jordan', 'Nina', 'Theo', 'Priya', 'Marcus', 'Sofia', 'Liam', 'Aisha', 'Diego',
+  'Hannah', 'Omar', 'Grace', 'Kenji', 'Ruby', 'Andre', 'Chloe', 'Raj', 'Bella',
+  'Tyler', 'Yara', 'Noah', 'Zoe', 'Mateo', 'Ivy', 'Caleb', 'Leila', 'Owen',
+  'Mia', 'Hassan', 'Elena', 'Kai', 'Daria', 'Felix', 'Naomi', 'Jonah', 'Simone',
+  'Reza', 'Tara', 'Victor', 'Amara', 'Cole'
+]
+const LAST_NAMES = [
+  'Carter', 'Delgado', 'Alvarez', 'Okafor', 'Brooks', 'Bautista', 'Lindqvist',
+  'Liu', 'Stone', 'Price', 'Rossi', 'Marsh', 'Patel', 'Nguyen', 'Hayes', 'Kapoor',
+  'Romano', 'Walsh', 'Mensah', 'Park', 'Sullivan', 'Haddad', 'Becker', 'Flores',
+  'Novak', 'Ahmed', 'Quinn', 'Castillo', 'Reyes', 'Larsen', 'Boyd', 'Cohen',
+  'Tanaka', 'Mbeki', 'Donovan', 'Ferreira', 'Kowalski', 'Singh', 'Webb', 'Russo',
+  'Adeyemi', 'Vance', 'Holloway', 'Sato', 'Bianchi', 'Frost', 'Osei', 'Mercer'
 ]
 
-// Detect placeholder/echoed text the model sometimes copies from the prompt.
-const PLACEHOLDER_RE = /invent|do not echo|echo this|creative (display|handle)|unrelated_to_topic|display name|<.*>|punchy @handle|personal username/i
-
-// What a real person's username looks like: lowercase letters/digits with
-// optional dots/underscores, 3-25 chars. Anything else (spaces, symbols,
-// uppercase soup) reads as a bot or a brand page.
+// What a real person's username looks like (used to validate generated handles).
 const HUMAN_HANDLE_RE = /^[a-z0-9][a-z0-9._]{2,24}$/
-// Display names: letters with normal name punctuation, max 30 chars.
 const HUMAN_NAME_RE = /^[A-Za-z][A-Za-z .'-]{1,29}$/
-// Digit-soup handles (@user48211998877) scream "bot" even when syntactically valid.
-const MAX_HANDLE_DIGITS = 4
 
-// Random (not topic-deterministic) so a repeat topic doesn't get pinned to
-// the identical persona every day — that repetition itself reads as botted.
-function fallbackPersona () {
-  return PERSONAS[Math.floor(Math.random() * PERSONAS.length)]
-}
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
 
-// Salvage model output before rejecting it: strip illegal characters, fix
-// case, trim length. Only fall back when nothing human-looking remains —
-// over-rejecting would funnel everything into the small pool.
-function salvageHandle (raw) {
-  const cleaned = String(raw)
-    .toLowerCase()
-    .replace(/^@/, '')
-    .replace(/[^a-z0-9._]/g, '')
-    // Edge dots aren't valid usernames on most platforms; edge underscores are.
-    .replace(/^\.+|\.+$/g, '')
-    .slice(0, 24)
-  if (!HUMAN_HANDLE_RE.test(cleaned)) return null
-  if (cleaned.replace(/[^0-9]/g, '').length > MAX_HANDLE_DIGITS) return null
-  return cleaned
-}
-
-function salvageName (raw) {
-  const cleaned = String(raw)
-    .replace(/[^A-Za-z .'-]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 30)
-  return HUMAN_NAME_RE.test(cleaned) ? cleaned : null
-}
-
-function cleanPersona (rawName, rawHandle) {
-  const bad = (v) => !v || typeof v !== 'string' || !v.trim() || PLACEHOLDER_RE.test(v)
-  if (bad(rawName) || bad(rawHandle)) return fallbackPersona()
-
-  const name = salvageName(rawName)
-  const handle = salvageHandle(rawHandle)
-  if (!name || !handle) return fallbackPersona()
-
-  return { name, handle: `@${handle}` }
+// Build a fresh, plausible commenter (display name + casual @handle) at random.
+function randomPersona () {
+  const first = pick(FIRST_NAMES)
+  const last = pick(LAST_NAMES)
+  const f = first.toLowerCase()
+  const l = last.toLowerCase()
+  const n = () => String(Math.floor(Math.random() * 90) + 10) // 2-digit
+  const styles = [
+    `${f}.${l}`, `${f}${l}`, `${f}_${l}`, `${f}${l}${n()}`,
+    `${f[0]}${l}`, `${f}${l[0]}`, `${f}.${l}${n()}`, `${f}_${n()}`, `${f}${l}_`
+  ]
+  const handle = pick(styles).slice(0, 24).replace(/\.+$/, '')
+  return { name: `${first} ${last}`, handle: `@${handle}` }
 }
 
 // Normalize a raw (possibly partial) model object into the full content shape.
 export function normalizeContent (raw, topic) {
   const safe = raw && typeof raw === 'object' ? raw : {}
-  const persona = cleanPersona(safe.name, safe.handle)
+  const persona = randomPersona()
   return {
     fact: asText(safe.fact, `Most people never notice what ${topic} is really about`, 240),
     reply: asText(safe.reply, 'The best stories hide their meaning in plain sight', 160),
@@ -253,4 +220,5 @@ export async function generateMemeContent (topic, opts = {}) {
   }
 }
 
-export const __config = { DEFAULT_MODEL, PERSONAS }
+export { randomPersona }
+export const __config = { DEFAULT_MODEL, FIRST_NAMES, LAST_NAMES, HUMAN_HANDLE_RE, HUMAN_NAME_RE }
