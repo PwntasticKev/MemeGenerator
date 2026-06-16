@@ -41,6 +41,52 @@ function drawRoundedRect (ctx, x, y, width, height, radius) {
   ctx.closePath()
 }
 
+// X "verified" badge: scalloped blue disc + white check. Pure canvas, no asset.
+// (Duplicated from layouts.js rather than imported to avoid a circular import.)
+function drawVerifiedBadge (ctx, cx, cy, r) {
+  ctx.save()
+  ctx.fillStyle = '#1d9bf0'
+  ctx.beginPath()
+  const lobes = 8
+  for (let i = 0; i < lobes * 2; i++) {
+    const ang = (Math.PI / lobes) * i - Math.PI / 2
+    const rad = i % 2 === 0 ? r : r * 0.84
+    const px = cx + Math.cos(ang) * rad
+    const py = cy + Math.sin(ang) * rad
+    if (i === 0) ctx.moveTo(px, py)
+    else ctx.lineTo(px, py)
+  }
+  ctx.closePath()
+  ctx.fill()
+  ctx.strokeStyle = '#fff'
+  ctx.lineWidth = Math.max(2, r * 0.22)
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.moveTo(cx - r * 0.40, cy + r * 0.02)
+  ctx.lineTo(cx - r * 0.08, cy + r * 0.34)
+  ctx.lineTo(cx + r * 0.44, cy - r * 0.30)
+  ctx.stroke()
+  ctx.restore()
+}
+
+// X (formerly Twitter) logo — two bold crossing strokes. Pure canvas, no asset.
+// Heavy weight so it reads as the brand mark, not a "close" button.
+function drawXLogo (ctx, cx, cy, size) {
+  ctx.save()
+  ctx.strokeStyle = '#000'
+  ctx.lineWidth = size * 0.26
+  ctx.lineCap = 'square'
+  const h = size / 2
+  ctx.beginPath()
+  ctx.moveTo(cx - h, cy - h)
+  ctx.lineTo(cx + h, cy + h)
+  ctx.moveTo(cx + h, cy - h)
+  ctx.lineTo(cx - h, cy + h)
+  ctx.stroke()
+  ctx.restore()
+}
+
 // avatarPath should be a local photo of the commenter's face (avatarProvider);
 // when absent we draw a colored-initials circle — NEVER an overlay graphic,
 // which used to be the default and looked like a glitch.
@@ -364,14 +410,18 @@ export async function generateTemplate ({ overlayPath, image1, image2, fact, rep
     drawInitialsAvatar()
   }
 
-  // Draw name and handle (FIXED: Proper spacing and alignment)
+  // Draw name + verified badge, handle, and the X logo at the row's far right
+  // (where X shows the post menu) so the card reads as a real screenshot from X.
   ctx.fillStyle = '#222'
   ctx.font = 'bold 32px Arial'
   ctx.textBaseline = 'top'
   ctx.fillText(name, NAME_X, NAME_Y)
+  const nameWidth = ctx.measureText(name).width
+  drawVerifiedBadge(ctx, NAME_X + nameWidth + 22, NAME_Y + 16, 15)
   ctx.fillStyle = '#888'
   ctx.font = '28px Arial'
   ctx.fillText(handle, NAME_X, HANDLE_Y)
+  drawXLogo(ctx, CARD_X + CARD_WIDTH - 60 - 17, AVATAR_Y + 28, 34)
 
   // Draw reply text (FIXED: Proper positioning after avatar section)
   ctx.fillStyle = '#444'
@@ -684,14 +734,18 @@ export async function generateTemplateWithVideo ({ videoOverlayPath, image1, ima
     drawInitialsAvatar()
   }
 
-  // Draw name and handle (FIXED: Proper spacing and alignment)
+  // Draw name + verified badge, handle, and the X logo at the row's far right
+  // (where X shows the post menu) so the card reads as a real screenshot from X.
   ctx.fillStyle = '#222'
   ctx.font = 'bold 32px Arial'
   ctx.textBaseline = 'top'
   ctx.fillText(name, NAME_X, NAME_Y)
+  const nameWidth = ctx.measureText(name).width
+  drawVerifiedBadge(ctx, NAME_X + nameWidth + 22, NAME_Y + 16, 15)
   ctx.fillStyle = '#888'
   ctx.font = '28px Arial'
   ctx.fillText(handle, NAME_X, HANDLE_Y)
+  drawXLogo(ctx, CARD_X + CARD_WIDTH - 60 - 17, AVATAR_Y + 28, 34)
 
   // Draw reply text (FIXED: Proper positioning after avatar section)
   ctx.fillStyle = '#444'
