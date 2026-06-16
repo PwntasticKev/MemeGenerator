@@ -42,22 +42,24 @@ export { DEFAULT_MODEL }
 // Account-specific voice. Account 2 historically used a "girl posting" register.
 function voiceFor (accountNumber) {
   if (accountNumber === 2) {
-    return 'Write in an over-the-top "girl posting" voice — words like "omg", "literally", "obsessed", "no bc" — while staying provocative and rage-bait.'
+    return 'Write in an over-the-top "girl posting" voice — words like "omg", "literally", "obsessed", "no bc" — but channel it into GENUINE enthusiasm for a fascinating insight, not hate.'
   }
-  return 'Write with sharp, confident, slightly smug energy — like someone with strong informed opinions who loves to stir the pot.'
+  return 'Write like a knowledgeable, enthusiastic film buff sharing a genuinely fascinating insight — smart and confident, the kind of take that makes people go "I never thought about that".'
 }
 
 function buildPrompt (topic, accountNumber) {
-  return `Create a VIRAL, RAGE-BAIT meme about "${topic}" for a Shorts channel whose audience is 16-34 film/TV/pop-culture fans who love spicy hot takes and arguing in the comments.
+  return `Create a FASCINATING, scroll-stopping meme about "${topic}" for a Shorts channel whose audience is 16-34 film/TV/pop-culture fans who love discovering things they didn't know and debating them in the comments.
 
 ${voiceFor(accountNumber)}
 
+The goal: make the viewer think "whoa, I never realized that" and feel smart — then want to add their own take in the comments. This is NOT generic hate or "X is overrated" clickbait. It is a genuinely interesting truth about something people already love, paired with an opinion worth debating. (The biggest channels in this niche win on insight, not outrage.)
+
 Return ONLY valid JSON with EXACTLY these fields:
 {
-  "fact": "a punchy hot take about ${topic} (MAX 80 chars, under 12 words) that ATTACKS something fans love OR makes a claim they'll rush to correct/defend — engineered to make ${topic} fans angry enough to COMMENT. Be specific to ${topic} (a character, scene, plot, or its hype), never generic 'bad'/'trash'. Short so it loops.",
-  "reply": "a smug doubling-down reply (max 70 chars) that pours fuel and makes people NEED to reply — NO emojis, NO questions, NO hashtags",
-  "youtube_title": "a curiosity-gap title using a PROVEN viral formula (these consistently outperform on this channel): 'The Hidden Meaning of ${topic}', 'The Real Truth About ${topic} Revealed', '${topic} EXPOSED', 'Why ${topic} Is Not What You Think', 'The ${topic} Detail Everyone Missed'",
-  "youtube_description": "1 short provocative sentence, then 10-15 hashtags MIXING: broad reach (#shorts #fyp #viral #movies), franchise/title-specific (e.g. #${topic.replace(/[^a-zA-Z0-9]/g, '')}), and debate (#hottake #filmtheory #moviedebate #unpopularopinion)",
+  "fact": "a genuinely FASCINATING, SPECIFIC insight about ${topic}: hidden lore, an alternate-history 'what if', a detail everyone missed, a deeper thematic meaning, a creator's intent, or a wild behind-the-scenes truth. 2-3 short sentences, roughly 150-210 characters — and ALWAYS finish your final sentence, never trail off mid-thought. Structure as an interesting setup THEN a payoff/twist that reframes how you see ${topic}. Must be SPECIFIC to a real character/scene/plot/creator and TRUE/credible — if it's a real fact, ground it (e.g. 'George Lucas said...'). NEVER generic 'bad'/'overrated'/'trash'.",
+  "reply": "a thoughtful, smart, DEBATABLE opinion that builds on the fact and gives people something to agree or disagree with (max 90 chars) — a sharp observation a real fan would make. NO emojis, NO questions, NO hashtags.",
+  "youtube_title": "a short, natural, conversational comment-bait hook — a question or speculative 'imagine' the viewer wants to answer, e.g. 'What would you have done?', 'Did they take it too far?', 'Imagine if this actually happened', 'Bet you never noticed this'. Human and casual, NEVER a rigid clickbait template.",
+  "youtube_description": "1 short intriguing sentence, then 8-12 hashtags MIXING: broad reach (#shorts #viral #movies), franchise/title-specific (e.g. #${topic.replace(/[^a-zA-Z0-9]/g, '')}), and discussion (#filmtheory #movielore #didyouknow #moviedebate)",
   "image_search_terms": ["3 specific search terms — use the exact ${topic} title, not generic words"],
   "avatar_search_terms": ["2 avatar/profile-pic search terms"],
   "handle": "<INVENT a realistic personal username a normal person would have: lowercase first/last-name bits, optional dots/underscores/2-digit number, e.g. @jess.carterr, @mikedelgado_, @tina.alv92 — NEVER a brand/page/bot-style name; do NOT echo this text>",
@@ -67,20 +69,29 @@ Return ONLY valid JSON with EXACTLY these fields:
 }
 
 Rules:
-- GOAL: drive COMMENTS. Pick the take most likely to make ${topic}'s fanbase argue — challenge a beloved character/scene/ending, call something overrated/underrated, or pit fan camps against each other. On-topic controversy ONLY (about the movie/show, never real-world hate).
-- Keep the fact SHORT and punchy (loops > read-time).
-- The reply must be clean (no hashtags/emojis/questions) and provocative enough that people reply to argue.
-- The title MUST use one of the proven curiosity-gap formulas above.
-- Make it unique; avoid generic insults.`
+- GOAL: spark discussion through FASCINATION, not anger. The best posts reveal something true and surprising about a beloved topic, then offer a take worth debating.
+- The fact must be genuinely interesting and SPECIFIC. If unsure it's true, pick a real, verifiable angle (lore, creator quotes, alternate endings, hidden details, thematic meaning) over a made-up claim.
+- The reply is a smart opinion people will want to build on or argue with — clean, no questions/emojis/hashtags.
+- The title is a natural, conversational comment-bait hook — never a rigid "The Hidden Meaning of X" template.
+- Think "film buff sharing a mind-blowing fact", NOT "hater". Avoid generic insults and manufactured outrage.`
 }
 
 const SYSTEM_PROMPT =
-  'You are a viral rage-bait creator. You write short, provocative, controversial social posts that trigger strong reactions and comment-section fights. Always respond with strict, valid JSON only.'
+  'You are a film and TV expert who writes short, fascinating, discussion-sparking social posts that reveal surprising truths about beloved movies and shows and invite debate. You favor genuine insight over outrage. Always respond with strict, valid JSON only.'
 
-// Coerce a single value into a trimmed string with a max length.
+// Coerce a single value into a trimmed string. When truncation is needed, cut
+// to the last COMPLETE sentence (so the insight's payoff is never a dangling
+// fragment); if there's no sentence break, fall back to a word boundary so text
+// is never chopped mid-word. A mid-word/mid-sentence cut looks broken on-card.
 function asText (value, fallback, maxLen) {
   const str = typeof value === 'string' && value.trim() ? value.trim() : fallback
-  return maxLen ? str.slice(0, maxLen) : str
+  if (!maxLen || str.length <= maxLen) return str
+  const cut = str.slice(0, maxLen)
+  const sentenceEnd = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '))
+  if (sentenceEnd > maxLen * 0.5) return cut.slice(0, sentenceEnd + 1).trim()
+  const lastSpace = cut.lastIndexOf(' ')
+  const trimmed = lastSpace > maxLen * 0.6 ? cut.slice(0, lastSpace) : cut
+  return trimmed.replace(/[\s,;:.–-]+$/, '')
 }
 
 // Canonical moods shared with the overlay tagger/matcher.
@@ -178,19 +189,20 @@ export function normalizeContent (raw, topic) {
   const safe = raw && typeof raw === 'object' ? raw : {}
   const persona = cleanPersona(safe.name, safe.handle)
   return {
-    fact: asText(safe.fact, `${topic} is the most overrated thing of the decade`, 120),
-    reply: asText(safe.reply, 'Finally someone said it out loud', 90),
-    youtube_title: asText(safe.youtube_title, `The Truth About ${topic}`),
+    fact: asText(safe.fact, `Most people never notice what ${topic} is really about`, 240),
+    reply: asText(safe.reply, 'The best stories hide their meaning in plain sight', 90),
+    // Cap at 100: YouTube rejects titles longer than 100 chars.
+    youtube_title: asText(safe.youtube_title, `Bet you never noticed this about ${topic}`, 100),
     youtube_description: asText(
       safe.youtube_description,
-      `Why ${topic} is not what you think. #hottake #controversial #viral #shorts`
+      `The ${topic} detail everyone missed. #shorts #viral #movies #filmtheory #movielore #didyouknow`
     ),
     image_search_terms: asArray(safe.image_search_terms, [topic, `${topic} movie`, `${topic} poster`]),
     avatar_search_terms: asArray(safe.avatar_search_terms, [`${topic} avatar`, `${topic} icon`]),
     handle: persona.handle,
     name: persona.name,
     mood: asMood(safe.mood),
-    tags: asArray(safe.tags, ['hottake', 'controversial', 'viral'])
+    tags: asArray(safe.tags, ['filmtheory', 'movielore', 'didyouknow'])
   }
 }
 
