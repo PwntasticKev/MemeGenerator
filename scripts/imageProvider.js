@@ -258,24 +258,43 @@ export function isRelevantTitle (candidateTitle, topic) {
 // ---------------------------------------------------------------------------
 
 const TMDB_IMG_BASE = 'https://image.tmdb.org/t/p/w780'
+const TMDB_API_BASE = 'https://api.themoviedb.org/3'
 
-// Resolve the key, treating the .env placeholder ("your-...-here") as unset so
-// we don't fire doomed requests before a real key is pasted.
-function tmdbKey () {
-  const k = process.env.TMDB_API_KEY
-  return k && !/^your-|-here$/i.test(k) ? k : null
+// Resolve TMDB auth from either env name, treating the .env placeholder
+// ("your-...-here") as unset. TMDB issues two credential styles:
+//   - v4 Read Access Token: a long JWT (header.payload.signature) → Bearer header
+//   - v3 API Key: a 32-char hex string → ?api_key= query param
+// We detect which and use the right transport, so whichever the user pastes works.
+function tmdbAuth () {
+  const k = process.env.THE_MOVIE_DB_API_KEY || process.env.TMDB_API_KEY
+  if (!k || /^your-|-here$/i.test(k)) return null
+  const isV4 = k.split('.').length === 3 || k.length > 40
+  return { type: isV4 ? 'v4' : 'v3', token: k }
 }
 
 export function tmdbConfigured () {
-  return Boolean(tmdbKey())
+  return Boolean(tmdbAuth())
+}
+
+// GET a TMDB API path (starting with '/'), attaching auth the right way.
+async function tmdbGet (pathAndQuery) {
+  const auth = tmdbAuth()
+  if (!auth) return null
+  if (auth.type === 'v4') {
+    const { data } = await axios.get(`${TMDB_API_BASE}${pathAndQuery}`, {
+      timeout: 10000,
+      headers: { Authorization: `Bearer ${auth.token}`, accept: 'application/json' }
+    })
+    return data
+  }
+  const sep = pathAndQuery.includes('?') ? '&' : '?'
+  const { data } = await axios.get(`${TMDB_API_BASE}${pathAndQuery}${sep}api_key=${auth.token}`, { timeout: 10000 })
+  return data
 }
 
 async function tmdbSearchMulti (query) {
-  const key = tmdbKey()
-  if (!key) return null
-  const url = `https://api.themoviedb.org/3/search/multi?api_key=${key}&query=${encodeURIComponent(query)}&include_adult=false`
-  const { data } = await axios.get(url, { timeout: 10000 })
-  const results = data.results || []
+  const data = await tmdbGet(`/search/multi?query=${encodeURIComponent(query)}&include_adult=false`)
+  const results = data?.results || []
   // Prefer a movie/TV match (gives scene backdrops) over a person match.
   return (
     results.find((r) => r.media_type === 'movie' || r.media_type === 'tv') ||
@@ -295,8 +314,7 @@ function tmdbGroup (images, hitTitle) {
 }
 
 async function tmdbImageUrls (query, limit, topic) {
-  const key = tmdbKey()
-  if (!key) return []
+  if (!tmdbConfigured()) return []
   try {
     const hit = await tmdbSearchMulti(query)
     if (!hit) return []
@@ -305,12 +323,8 @@ async function tmdbImageUrls (query, limit, topic) {
 
     const type = hit.media_type
     const id = hit.id
-    const endpoint =
-      type === 'person'
-        ? `https://api.themoviedb.org/3/person/${id}/images?api_key=${key}`
-        : `https://api.themoviedb.org/3/${type}/${id}/images?api_key=${key}`
-
-    const { data } = await axios.get(endpoint, { timeout: 10000 })
+    const data = await tmdbGet(`/${type}/${id}/images`)
+    if (!data) return []
     // Lead with the EMOTIONAL character imagery this channel needs — scene
     // backdrops (stills) and person profiles (faces) — and use vertical poster
     // art only as backfill. This is the whole reason to add TMDB: real stills,
