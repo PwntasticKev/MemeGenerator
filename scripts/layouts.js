@@ -168,20 +168,28 @@ function drawVerifiedBadge (ctx, cx, cy, r) {
   ctx.restore()
 }
 
-// X (formerly Twitter) logo — two bold crossing strokes. Pure canvas, no asset.
-// Heavy weight so it reads as the brand mark, not a "close" button.
+// X (formerly Twitter) logo — the OFFICIAL glyph traced as a filled path (with
+// its inner counter) so it reads as the real brand mark, not a stray "close" X.
+// node-canvas lacks Path2D(svg), so the outline is hard-coded in a 24-unit box
+// and scaled to `size`. Coordinates are the official X logo path.
+const X_LOGO_OUTER = [
+  [18.244, 2.25], [21.552, 2.25], [14.325, 10.51], [22.827, 21.75], [16.17, 21.75],
+  [10.956, 14.933], [4.99, 21.75], [1.68, 21.75], [9.41, 12.915], [1.254, 2.25],
+  [8.08, 2.25], [12.793, 8.481]
+]
+const X_LOGO_COUNTER = [[17.083, 19.77], [18.916, 19.77], [7.084, 4.126], [5.117, 4.126]]
+
 function drawXLogo (ctx, cx, cy, size) {
   ctx.save()
-  ctx.strokeStyle = '#000'
-  ctx.lineWidth = size * 0.26
-  ctx.lineCap = 'square'
-  const h = size / 2
+  ctx.fillStyle = '#000'
+  ctx.translate(cx - size / 2, cy - size / 2)
+  ctx.scale(size / 24, size / 24)
   ctx.beginPath()
-  ctx.moveTo(cx - h, cy - h)
-  ctx.lineTo(cx + h, cy + h)
-  ctx.moveTo(cx + h, cy - h)
-  ctx.lineTo(cx - h, cy + h)
-  ctx.stroke()
+  X_LOGO_OUTER.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])))
+  ctx.closePath()
+  X_LOGO_COUNTER.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])))
+  ctx.closePath()
+  ctx.fill('evenodd')
   ctx.restore()
 }
 
