@@ -85,7 +85,10 @@ export async function createVideoForTopic (opts) {
   // Shorts signal — the channel's best clips looped ~1.9x). Tune via VIDEO_DURATION.
   const duration = Math.max(3, parseInt(process.env.VIDEO_DURATION || '7', 10))
   const motion = process.env.MOTION !== 'off'
-  const videoPath = path.join(outDir, 'video.mp4')
+  // Self-describing local filename (topic + date) so output/ and copied files
+  // are browsable. NOTE: the filename is NOT sent to YouTube on upload — this is
+  // purely local convenience, it does not affect how YouTube sees the video.
+  const videoPath = path.join(outDir, `${slug}_${today}.mp4`)
   if (motion) {
     await addRandomAudioToVideoWithMotion(framePath, videoPath, duration)
   } else {
