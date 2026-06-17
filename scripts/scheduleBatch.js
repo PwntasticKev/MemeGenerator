@@ -26,6 +26,7 @@ import { fileURLToPath } from 'url'
 import { selectDailyTopic, recordPosted, loadHistory } from './topicSelector.js'
 import { createVideoForTopic } from './generateVideo.js'
 import { uploadToYouTube } from './youtubeUploader.js'
+import { uploadToTikTok, tiktokConfigured } from './tiktokUploader.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..')
@@ -157,6 +158,23 @@ async function main () {
         : `Upload FAILED: ${upload.error}`)
     }
 
+    // Cross-post to TikTok if configured. Non-fatal: a TikTok failure must never
+    // break the YouTube flow. Inbox mode drops the video into TikTok drafts.
+    let tiktok = { skipped: true }
+    if (!DRY_RUN && tiktokConfigured()) {
+      try {
+        const caption = [made.content.youtube_title, (made.content.tags || []).map((t) => `#${t}`).join(' ')]
+          .filter(Boolean).join(' ')
+        tiktok = await uploadToTikTok(made.videoPath, { caption })
+        log(tiktok.success
+          ? `TikTok: uploaded (${tiktok.mode}, publish_id ${tiktok.publishId})`
+          : `TikTok FAILED: ${tiktok.error}`)
+      } catch (err) {
+        tiktok = { success: false, error: err.message }
+        log(`TikTok error: ${err.message}`)
+      }
+    }
+
     recordPosted({
       date: today,
       topic,
@@ -167,7 +185,9 @@ async function main () {
       scheduledPublishAt: publishAt.toISOString(),
       youtubeId: upload?.videoId || null,
       youtubeUrl: upload?.videoUrl || null,
-      uploaded: Boolean(upload?.success)
+      uploaded: Boolean(upload?.success),
+      tiktokPublishId: tiktok?.publishId || null,
+      tiktokUploaded: Boolean(tiktok?.success)
     })
     results.push({ topic, publishAt: publishAt.toISOString(), uploaded: Boolean(upload?.success) })
 
