@@ -80,10 +80,12 @@ export async function createVideoForTopic (opts) {
   log(`Template rendered (mood: ${content.mood}, layout: ${layout}, overlay: ${path.basename(path.dirname(overlayPath))}/${path.basename(overlayPath)}).`)
 
   // Video (Ken Burns motion by default; MOTION=off for static).
-  // Duration default 7s — the balance point: long enough to read the punchy
-  // fact+reply once, short enough to start looping (loops/replays are a strong
-  // Shorts signal — the channel's best clips looped ~1.9x). Tune via VIDEO_DURATION.
-  const duration = Math.max(3, parseInt(process.env.VIDEO_DURATION || '7', 10))
+  // Duration default 6s — short enough that viewers reach the loop point quickly
+  // (loops/replays are a strong Shorts signal — the channel's best clips looped
+  // ~1.9x) while still long enough to read the punchy fact+reply once. The motion
+  // now zooms in-then-out so the last frame matches the first → seamless loop.
+  // Tune via VIDEO_DURATION.
+  const duration = Math.max(3, parseInt(process.env.VIDEO_DURATION || '6', 10))
   const motion = process.env.MOTION !== 'off'
   // Self-describing local filename (topic + date) so output/ and copied files
   // are browsable. NOTE: the filename is NOT sent to YouTube on upload — this is

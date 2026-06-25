@@ -56,7 +56,7 @@ The goal: make the viewer think "whoa, I never realized that" and feel smart —
 
 Return ONLY valid JSON with EXACTLY these fields:
 {
-  "fact": "a genuinely FASCINATING, SPECIFIC insight about ${topic}: hidden lore, an alternate-history 'what if', a detail everyone missed, a deeper thematic meaning, a creator's intent, or a wild behind-the-scenes truth. 1-2 short sentences, roughly 120-190 characters — and ALWAYS finish your final sentence, never trail off mid-thought. Structure as an interesting setup THEN a payoff/twist that reframes how you see ${topic}. Must be SPECIFIC to a real character/scene/plot/creator and TRUE/credible — if it's a real fact, ground it (e.g. 'George Lucas said...'). NEVER generic 'bad'/'overrated'/'trash'.",
+  "fact": "a genuinely FASCINATING, SPECIFIC insight about ${topic}: hidden lore, an alternate-history 'what if', a detail everyone missed, a deeper thematic meaning, a creator's intent, or a wild behind-the-scenes truth. FRONT-LOAD THE HOOK: the first 4-6 words must already be intriguing (lead with the surprising claim, not a slow wind-up like 'In <topic>, the...') — a viewer reads only the first second before deciding to swipe. 1-2 short sentences, roughly 90-150 characters, tight and punchy — and ALWAYS finish your final sentence, never trail off mid-thought. Structure as an interesting setup THEN a payoff/twist that reframes how you see ${topic}. Must be SPECIFIC to a real character/scene/plot/creator and TRUE/credible — if it's a real fact, ground it (e.g. 'George Lucas said...'). NEVER generic 'bad'/'overrated'/'trash'.",
   "reply": "a thoughtful, smart, DEBATABLE opinion that builds on the fact and gives people something to agree or disagree with — a sharp observation a real fan would make. Keep it PUNCHY and SHORT: ONE natural sentence like a real fan's comment (8-16 words), never an essay, never trailing off mid-thought. NO emojis, NO questions, NO hashtags.",
   "youtube_title": "a short, natural, conversational comment-bait hook — a question or speculative 'imagine' the viewer wants to answer, e.g. 'What would you have done?', 'Did they take it too far?', 'Imagine if this actually happened', 'Bet you never noticed this'. Human and casual, NEVER a rigid clickbait template.",
   "youtube_description": "1 short intriguing sentence, then 8-12 hashtags MIXING: broad reach (#shorts #viral #movies), franchise/title-specific (e.g. #${topic.replace(/[^a-zA-Z0-9]/g, '')}), and discussion (#filmtheory #movielore #didyouknow #moviedebate)",
@@ -91,7 +91,11 @@ function asText (value, fallback, maxLen) {
   const re = /[.!?]['"”’)\]]?(?=\s|$)/g
   let m
   while ((m = re.exec(cut)) !== null) sentenceEnd = m.index + m[0].length
-  if (sentenceEnd > maxLen * 0.35) return cut.slice(0, sentenceEnd).trim()
+  // Prefer the last COMPLETE sentence over a dangling fragment. A clean sentence
+  // of ~40+ chars is a fine punchy hook, so accept it even when it's well short of
+  // maxLen — a trailing "...emphasizing how fear and" reads as broken on-card.
+  // The 40-char floor still guards against an absurdly short one-clause cut.
+  if (sentenceEnd >= Math.min(40, maxLen * 0.35)) return cut.slice(0, sentenceEnd).trim()
   const lastSpace = cut.lastIndexOf(' ')
   const trimmed = lastSpace > maxLen * 0.6 ? cut.slice(0, lastSpace) : cut
   return trimmed.replace(/[\s,;:.–-]+$/, '')
@@ -161,7 +165,7 @@ export function normalizeContent (raw, topic) {
   const safe = raw && typeof raw === 'object' ? raw : {}
   const persona = randomPersona()
   return {
-    fact: asText(safe.fact, `Most people never notice what ${topic} is really about`, 240),
+    fact: asText(safe.fact, `Most people never notice what ${topic} is really about`, 170),
     reply: asText(safe.reply, 'The best stories hide their meaning in plain sight', 160),
     // Cap at 100: YouTube rejects titles longer than 100 chars.
     youtube_title: asText(safe.youtube_title, `Bet you never noticed this about ${topic}`, 100),

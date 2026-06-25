@@ -209,15 +209,19 @@ export async function addRandomAudioToVideo (imagePath, outputPath, duration = D
 }
 
 /**
- * Build the ffmpeg video filter for a subtle Ken Burns push-in (zoom).
- * Upscales first to avoid zoompan jitter, then slowly zooms to ~1.10x.
- * Motion meaningfully improves short-form retention vs a static frame.
+ * Build the ffmpeg video filter for a subtle Ken Burns zoom.
+ * Upscales first to avoid zoompan jitter, then zooms IN to ~1.08x at the midpoint
+ * and back OUT to 1.0x by the end, so the final frame matches the first frame —
+ * the clip loops seamlessly (no visible "pop" on replay). Loops/replays are a
+ * strong Shorts retention signal, and motion beats a static frame either way.
+ * The zoom factor follows 1 + 0.08*sin(pi*on/frames): 0 at both ends, peak in
+ * the middle. `on` is zoompan's output-frame index.
  */
 function kenBurnsFilter (duration, fps = 30) {
   const frames = Math.round(duration * fps)
   return (
     `scale=2160:3840,` +
-    `zoompan=z='min(zoom+0.0006,1.10)':d=${frames}:` +
+    `zoompan=z='1+0.08*sin(PI*on/${frames})':d=${frames}:` +
     `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=${fps},` +
     `setsar=1`
   )
